@@ -6,6 +6,7 @@ import (
 	"github.com/ankit/project/message-quening-system/internal/db"
 	"github.com/ankit/project/message-quening-system/internal/server"
 	"github.com/ankit/project/message-quening-system/internal/service"
+	"github.com/ankit/project/message-quening-system/internal/utils"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/swaggo/swag/example/basic/docs"
 
@@ -22,6 +23,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to connect to DB : ", err)
 	}
+
+	utils.InitLogClient()
 	service.NewProductService(postgres)
 	server.Start()
 }

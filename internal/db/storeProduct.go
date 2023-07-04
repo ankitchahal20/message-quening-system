@@ -21,6 +21,6 @@ var (
 	ErrZeroRowsFound      = errors.New("no row found in DB for the given short url")
 )
 
-func (p postgres) CreateProduct(urlInfo models.Product) error {
+func (p postgres) CreateProduct(productDetails models.Product) error {
 	return nil
 }

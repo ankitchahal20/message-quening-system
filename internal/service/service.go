@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/ankit/project/message-quening-system/internal/db"
@@ -24,15 +25,14 @@ func NewProductService(conn db.ProductService) {
 
 func CreateProduct() func(ctx *gin.Context) {
 	return func(context *gin.Context) {
-		var urlInfo models.Product
-		if err := context.ShouldBindBodyWith(&urlInfo, binding.JSON); err == nil {
+		var productDetails models.Product
+		if err := context.ShouldBindBodyWith(&productDetails, binding.JSON); err == nil {
 
-			shortURL, err := productClient.createProduct(urlInfo)
+			product, err := productClient.createProduct(productDetails)
 			if err != nil {
 				context.Writer.WriteHeader(http.StatusInternalServerError)
 			} else {
-				context.JSON(http.StatusCreated, shortURL)
-				//context.Writer.WriteHeader(http.StatusOK)
+				context.JSON(http.StatusCreated, product)
 			}
 		} else {
 			context.JSON(http.StatusBadRequest, gin.H{"Unable to marshal the request body": err.Error()})
@@ -40,6 +40,7 @@ func CreateProduct() func(ctx *gin.Context) {
 	}
 }
 
-func (service *ProductService) createProduct(urlInfo models.Product) (models.Product, *producterror.ProductError) {
+func (service *ProductService) createProduct(productDetails models.Product) (models.Product, *producterror.ProductError) {
+	fmt.Println("hello from product service")
 	return models.Product{}, nil
 }
