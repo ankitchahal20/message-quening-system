@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
+	"github.com/ankit/project/message-quening-system/cmd/consumer"
 	"github.com/ankit/project/message-quening-system/cmd/producer"
 	"github.com/ankit/project/message-quening-system/internal/db"
 	"github.com/ankit/project/message-quening-system/internal/models"
 	producterror "github.com/ankit/project/message-quening-system/internal/producterror"
+	"github.com/ankit/project/message-quening-system/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/segmentio/kafka-go"
@@ -55,27 +58,83 @@ func (service *ProductService) createProduct(ctx *gin.Context, productDetails mo
 		return models.Product{}, err
 	}
 
-	//
-	kafkaErr := publishProductID(*productDetails.ProductID)
-	if kafkaErr != nil {
-		//http.Error(w, "Failed to publish product_id", http.StatusInternalServerError)
-		fmt.Println("kafkaErr : ", kafkaErr)
-		//return
+	fmt.Println("productDetails.ProductID : ", *productDetails.ProductID)
+
+	// Send the product ID to the message channel
+	message := models.Message{
+		ProductID: fmt.Sprint(*productDetails.ProductID),
+		Product:   productDetails,
 	}
+	utils.MessageChan <- message
 
 	return productDetails, nil
 }
 
-func publishProductID(productID int) error {
+func ProduceMessages(messageChan <-chan models.Message) {
+	for message := range messageChan {
+		// Serialize the message data
+		messageData, err := json.Marshal(message)
+		if err != nil {
+			log.Printf("Error marshaling message: %v\n", err)
+			continue
+		}
 
-	message := kafka.Message{
-		Key:   []byte(fmt.Sprint(productID)),
-		Value: nil,
-	}
+		// Create a Kafka message with the serialized data
+		kafkaMessage := kafka.Message{
+			Key:   []byte(message.ProductID),
+			Value: messageData,
+		}
 
-	err := producer.KafkaWriter.WriteMessages(context.Background(), message)
-	if err != nil {
-		return err
+		// Write the message to the Kafka topic
+		err = producer.KafkaWriter.WriteMessages(context.Background(), kafkaMessage)
+		if err != nil {
+			log.Printf("Error writing message to Kafka: %v\n", err)
+		}
 	}
-	return nil
+}
+
+func ConsumeMessages(messageChan chan<- models.Message) {
+	for {
+		// Read the next message from the Kafka topic
+		message, err := consumer.KafkaReader.ReadMessage(context.Background())
+		if err != nil {
+			log.Printf("Error reading message from Kafka: %v\n", err)
+			continue
+		}
+
+		// Deserialize the kafka message data into a Message struct
+		var receivedMessage models.Message
+		err = json.Unmarshal(message.Value, &receivedMessage)
+		if err != nil {
+			log.Printf("Error unmarshaling message: %v\n", err)
+			continue
+		}
+
+		// Process the received message (e.g., download and compress product images)
+
+		// Add the compressed image path to the product in the database
+		compressedImages := processProductImages(receivedMessage.ProductID)
+
+		// 	Update the database with the compressed_product_images
+		updateProductImages(receivedMessage.ProductID, compressedImages)
+
+		// Print the processed message
+		log.Printf("Processed message: ProductID=%s, ProductName=%s\n", receivedMessage.ProductID, receivedMessage.Product.ProductName)
+	}
+}
+
+func processProductImages(productID string) []string {
+	// Simulate image compression process.
+	fmt.Printf("Product images compressed for product_id: %s\n", productID)
+
+	// Return the compressed image file paths.
+	return []string{
+		"/path/to/compressed/image1.jpg",
+		"/path/to/compressed/image2.jpg",
+	}
+}
+
+func updateProductImages(productID string, compressedImages []string) {
+	// Update the compressed_product_images column in the database (DB implementation not provided).
+	fmt.Printf("Compressed images updated for product_id: %s\n", productID)
 }

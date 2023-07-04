@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/ankit/project/message-quening-system/cmd/consumer"
 	"github.com/ankit/project/message-quening-system/cmd/producer"
 	"github.com/ankit/project/message-quening-system/internal/db"
 	"github.com/ankit/project/message-quening-system/internal/server"
@@ -27,8 +28,13 @@ func main() {
 
 	producer.IntializeKafkaProducerWriter()
 	defer producer.KafkaWriter.Close()
-	// consumer.IntializeKafkaProducerReader()
-	// defer consumer.KafkaReader.Close()
+	consumer.IntializeKafkaConsumerReader()
+	defer consumer.KafkaReader.Close()
+	// Create a channel to receive messages from the producer
+	utils.InitChannel()
+	go service.ConsumeMessages(utils.MessageChan)
+	go service.ProduceMessages(utils.MessageChan)
+
 	utils.InitLogClient()
 	service.NewProductService(postgres)
 	server.Start()

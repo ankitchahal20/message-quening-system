@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ankit/project/message-quening-system/cmd/consumer"
+	"github.com/ankit/project/message-quening-system/cmd/producer"
 	"github.com/ankit/project/message-quening-system/internal/constants"
 	"github.com/ankit/project/message-quening-system/internal/middleware"
 	"github.com/ankit/project/message-quening-system/internal/service"
@@ -36,6 +38,7 @@ func Start() {
 		Use(middleware.ValidateInputRequest())
 
 	registerCreateProductEndPoints(messageQueueHandler)
+
 	// registerProductServiceDocsEndpoints(messageQueueHandler)
 
 	srv := &http.Server{
@@ -93,6 +96,9 @@ func waitForShutdown(srv *http.Server) {
 	*/
 
 	srv.Shutdown(ctx)
+
+	producer.KafkaWriter.Close()
+	consumer.KafkaReader.Close()
 
 	log.Println("Shutting down")
 	os.Exit(0)
