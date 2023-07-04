@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/ankit/project/message-quening-system/cmd/producer"
 	"github.com/ankit/project/message-quening-system/internal/db"
 	"github.com/ankit/project/message-quening-system/internal/server"
 	"github.com/ankit/project/message-quening-system/internal/service"
@@ -24,6 +25,10 @@ func main() {
 		log.Fatal("Unable to connect to DB : ", err)
 	}
 
+	producer.IntializeKafkaProducerWriter()
+	defer producer.KafkaWriter.Close()
+	// consumer.IntializeKafkaProducerReader()
+	// defer consumer.KafkaReader.Close()
 	utils.InitLogClient()
 	service.NewProductService(postgres)
 	server.Start()
