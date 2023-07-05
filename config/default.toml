@@ -9,3 +9,7 @@ password = ""
 address = "0.0.0.0:8080"
 read_time_out = 10
 write_time_out = 20
+
+[kafka]
+topic          = "my-kafka-topic"
+broker_1_address = "localhost:9092"

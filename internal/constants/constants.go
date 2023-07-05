@@ -9,4 +9,5 @@ const (
 
 	TransactionID = "transaction-id"
 	InvalidBody   = "invalid value for body"
+	Group         = "my-group"
 )

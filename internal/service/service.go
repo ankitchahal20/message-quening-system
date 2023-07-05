@@ -48,9 +48,22 @@ func CreateProduct() func(ctx *gin.Context) {
 	return func(context *gin.Context) {
 		var productDetails models.Product
 		if err := context.ShouldBindBodyWith(&productDetails, binding.JSON); err == nil {
+			messageChan = make(chan models.Message)
+			go func() {
+				err := productClient.ProduceMessages(context, messageChan)
+				if err != nil {
+					utils.Logger.Error("Error producing messages:", zap.Error(err))
+					context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to produce messages"})
+				}
+			}()
 
-			go productClient.ProduceMessages(context, messageChan)
-			go productClient.ConsumeMessages(context, messageChan)
+			go func() {
+				err := productClient.ConsumeMessages(context, messageChan)
+				if err != nil {
+					utils.Logger.Error("Error consuming messages:", zap.Error(err))
+					context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to consume messages"})
+				}
+			}()
 
 			product, err := productClient.createProduct(context, productDetails)
 			if err != nil {
@@ -95,7 +108,7 @@ func (service *ProductService) createProduct(ctx *gin.Context, productDetails mo
 	return productDetails, nil
 }
 
-func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-chan models.Message) {
+func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-chan models.Message) error {
 	fmt.Println("Pro")
 	for message := range messageChan {
 		// Serialize the message data
@@ -117,16 +130,17 @@ func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-c
 			utils.Logger.Error("Error writing message to Kafka:", zap.String("error", err.Error()))
 		}
 	}
+	return nil
 }
 
-func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan chan<- models.Message) {
-	fmt.Println("Con")
+func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan chan<- models.Message) error {
+
 	for {
 		// Read the next message from the Kafka topic
 		message, err := consumer.KafkaReader.ReadMessage(context.Background())
 		if err != nil {
 			utils.Logger.Error("Error reading message from Kafka:", zap.String("error", err.Error()))
-			continue
+			return fmt.Errorf("error reading message from Kafka: %w", err)
 		}
 
 		// Deserialize the kafka message data into a Message struct
@@ -134,21 +148,23 @@ func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan cha
 		err = json.Unmarshal(message.Value, &receivedMessage)
 		if err != nil {
 			utils.Logger.Error("Error marshaling message :", zap.String("error", err.Error()))
-			continue
+			return fmt.Errorf("error unmarshaling message: %w", err)
 		}
 
 		// Download and compress the product images
 		compressedImages, productErr := service.downloadAndCompressProductImages(ctx, receivedMessage)
 		if productErr != nil {
 			utils.Logger.Error("unable to download and compress images :", zap.String("error", err.Error()))
+			return fmt.Errorf("error downloading and compressing images: %v", productErr)
 		}
+
 		// Update the database with the compressed_product_images
 		productID, _ := strconv.Atoi(receivedMessage.ProductID)
 		producterr := service.updateCompressedProductImages(ctx, productID, compressedImages)
 		if producterr != nil {
 			utils.Logger.Error("unable to update compress images in db :", zap.String("error", err.Error()))
+			return fmt.Errorf("error updating compressed images in db: %v", productErr)
 		}
-
 		// Print the processed message
 		log.Printf("Processed message: ProductID=%s, ProductName=%s\n", receivedMessage.ProductID, receivedMessage.Product.ProductName)
 	}
@@ -175,7 +191,7 @@ func (service *ProductService) downloadAndCompressProductImages(ctx *gin.Context
 	i := 1
 	var imagesPath []string
 	for _, imageURL := range productImages {
-		imagePath, err := downloadAndCompressImage(ctx, imageURL, i)
+		imagePath, err := downloadAndCompressImage(ctx, imageURL, msg, i)
 		i++
 		imagesPath = append(imagesPath, imagePath)
 		if err != nil {
@@ -201,10 +217,10 @@ func (service *ProductService) getProductImages(ctx *gin.Context, productID int)
 	return images, nil
 }
 
-func downloadAndCompressImage(ctx *gin.Context, imageURL string, index int) (string, error) {
+func downloadAndCompressImage(ctx *gin.Context, imageURL string, msg models.Message, index int) (string, error) {
 	txid := ctx.Request.Header.Get(constants.TransactionID)
 	// Create the output file path
-	outputPath := filepath.Join(imageOutputDir, fmt.Sprintf("image%d.jpg", index))
+	outputPath := filepath.Join(imageOutputDir, fmt.Sprintf(msg.ProductID+"-"+"image-%d.jpg", index))
 
 	// Create the output file
 	outputFile, err := os.Create(outputPath)
@@ -304,7 +320,7 @@ func resizeImage(ctx *gin.Context, inputPath, outputPath string, width, height i
 
 func (service *ProductService) updateCompressedProductImages(ctx *gin.Context, productID int, compressedImages []string) *producterror.ProductError {
 	// Update the compressed_product_images column in the database
-	utils.Logger.Error("calling db layer to update compressed product images")
+	utils.Logger.Info("calling db layer to update compressed product images")
 	err := service.repo.UpdateCompressedProductImages(ctx, productID, compressedImages)
 	return err
 }

@@ -1,10 +1,5 @@
 package config
 
-type GlobalConfig struct {
-	Database Database `toml:"database"`
-	Server   Server   `toml:"server"`
-}
-
 var (
 	globalConfig GlobalConfig
 )
@@ -14,6 +9,12 @@ func SetConfig(cfg GlobalConfig) {
 }
 func GetConfig() GlobalConfig {
 	return globalConfig
+}
+
+type GlobalConfig struct {
+	Database Database `toml:"database"`
+	Server   Server   `toml:"server"`
+	Kafka    Kafka    `toml:"kafka"`
 }
 
 type Database struct {
@@ -28,4 +29,9 @@ type Server struct {
 	Address      string `toml:"address"`
 	ReadTimeOut  int    `toml:"read_time_out"`
 	WriteTimeOut int    `toml:"write_time_out"`
+}
+
+type Kafka struct {
+	Topic          string `toml:"topic"`
+	Broker1Address string `toml:"broker_1_address"`
 }

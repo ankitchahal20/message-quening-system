@@ -22,13 +22,13 @@ func main() {
 
 	config, err := toml.LoadFile("./config/default.toml")
 	if err != nil {
-		// handle error
+		log.Fatalf("Error while loading deafault.toml file")
 	}
 
 	var appConfig globalconfig.GlobalConfig
 	err = config.Unmarshal(&appConfig)
 	if err != nil {
-		// handle error
+		log.Fatalf("Error while unmarshalling config")
 	}
 
 	globalconfig.SetConfig(appConfig)
@@ -42,14 +42,9 @@ func main() {
 	defer producer.KafkaWriter.Close()
 	consumer.IntializeKafkaConsumerReader()
 	defer consumer.KafkaReader.Close()
-	// Create a channel to receive messages from the producer
-	//utils.InitChannel()
 
 	utils.InitLogClient()
 	_ = service.NewProductService(postgres)
-
-	// go productClient.ConsumeMessages(utils.MessageChan)
-	// go productClient.ProduceMessages(utils.MessageChan)
 
 	server.Start()
 }
