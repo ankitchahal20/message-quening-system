@@ -4,28 +4,20 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 
-	"github.com/joho/godotenv"
+	"github.com/ankit/project/message-quening-system/internal/config"
 )
 
 func New() (postgres, error) {
-	fmt.Println("Hello")
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-	connString := os.Getenv("DB_CONNECTION_STRING")
-	if connString == "" {
-		log.Fatal("DB_CONNECTION_STRING not found in .env file")
-	}
+	cfg := config.GetConfig()
+	connString := "host=" + cfg.Database.Host + " " + "dbname=" + cfg.Database.DBname + " " + "password=" +
+		cfg.Database.Password + " " + "user=" + cfg.Database.User + " " + "port=" + fmt.Sprint(cfg.Database.Port)
+
 	conn, err := sql.Open("pgx", connString)
 	if err != nil {
 		log.Fatalf(fmt.Sprintf("Unable to connect: %v\n", err))
 		return postgres{}, err
 	}
-
-	//defer conn.Close()
 
 	log.Println("Connected to database")
 

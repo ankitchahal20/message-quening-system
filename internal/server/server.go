@@ -12,21 +12,15 @@ import (
 
 	"github.com/ankit/project/message-quening-system/cmd/consumer"
 	"github.com/ankit/project/message-quening-system/cmd/producer"
+	"github.com/ankit/project/message-quening-system/internal/config"
 	"github.com/ankit/project/message-quening-system/internal/constants"
 	"github.com/ankit/project/message-quening-system/internal/middleware"
 	"github.com/ankit/project/message-quening-system/internal/service"
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func registerCreateProductEndPoints(handler gin.IRoutes) {
 	handler.POST(constants.ForwardSlash+strings.Join([]string{constants.Product, constants.ForwardSlash, constants.Create}, constants.ForwardSlash), service.CreateProduct())
-}
-
-func registerProductServiceDocsEndpoints(handler gin.IRoutes) {
-	handler.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
 }
 
 func Start() {
@@ -39,13 +33,12 @@ func Start() {
 
 	registerCreateProductEndPoints(messageQueueHandler)
 
-	// registerProductServiceDocsEndpoints(messageQueueHandler)
-
+	cfg := config.GetConfig()
 	srv := &http.Server{
 		Handler:      plainHandler,
-		Addr:         ":8080",
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:         cfg.Server.Address,
+		ReadTimeout:  time.Duration(time.Duration(cfg.Server.ReadTimeOut).Seconds()),
+		WriteTimeout: time.Duration(time.Duration(cfg.Server.WriteTimeOut).Seconds()),
 	}
 
 	// Start Server

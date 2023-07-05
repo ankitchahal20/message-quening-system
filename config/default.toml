@@ -1,0 +1,11 @@
+[database]
+host = "localhost"
+port = 5432
+dbname = "postgres"
+user = ""
+password = ""
+
+[server]
+address = "0.0.0.0:8080"
+read_time_out = 10
+write_time_out = 20

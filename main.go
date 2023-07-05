@@ -5,12 +5,13 @@ import (
 
 	"github.com/ankit/project/message-quening-system/cmd/consumer"
 	"github.com/ankit/project/message-quening-system/cmd/producer"
+	globalconfig "github.com/ankit/project/message-quening-system/internal/config"
 	"github.com/ankit/project/message-quening-system/internal/db"
 	"github.com/ankit/project/message-quening-system/internal/server"
 	"github.com/ankit/project/message-quening-system/internal/service"
 	"github.com/ankit/project/message-quening-system/internal/utils"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/swaggo/swag/example/basic/docs"
+	"github.com/pelletier/go-toml"
 
 	"go.uber.org/zap"
 )
@@ -19,8 +20,19 @@ func main() {
 	logger, _ := zap.NewDevelopment()
 	logger.Info("Main started")
 
-	docs.SwaggerInfo.BasePath = ""
-	docs.SwaggerInfo.Host = "0.0.0.0:8080"
+	config, err := toml.LoadFile("./config/default.toml")
+	if err != nil {
+		// handle error
+	}
+
+	var appConfig globalconfig.GlobalConfig
+	err = config.Unmarshal(&appConfig)
+	if err != nil {
+		// handle error
+	}
+
+	globalconfig.SetConfig(appConfig)
+
 	postgres, err := db.New()
 	if err != nil {
 		log.Fatal("Unable to connect to DB : ", err)
