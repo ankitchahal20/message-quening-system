@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/ankit/project/message-quening-system/internal/constants"
@@ -22,7 +20,7 @@ func getTransactionID(c *gin.Context) string {
 	_, err := uuid.Parse(transactionID)
 	if err != nil {
 		transactionID = uuid.New().String()
-		c.Set(constants.TransactionID, transactionID)
+		c.Request.Header.Set(constants.TransactionID, transactionID)
 	}
 	return transactionID
 }
@@ -37,21 +35,13 @@ func ValidateInputRequest() gin.HandlerFunc {
 		var productRequestFields models.Product
 		err := ctx.ShouldBindBodyWith(&productRequestFields, binding.JSON)
 		if err != nil {
-			utils.Logger.Info("Hello", zap.String("txid", txid))
-
-			utils.Logger.Error("Error while unmarshalling the request field for request data validation", zap.String("txid", txid), zap.Error(errors.New("something happened")))
-
-			fmt.Println("Hello")
-			ctx.JSON(http.StatusBadRequest, gin.H{"Unable to marshal the request body": err.Error()})
-			//utils.RespondWithError(ctx, http.StatusBadRequest, constants.InvalidBody)
+			utils.RespondWithError(ctx, http.StatusBadRequest, constants.InvalidBody)
 			return
 		}
-		utils.Logger.Debug(fmt.Sprintf("Received input : %v", productRequestFields), zap.String("txid", txid), zap.Error(errors.New("something happened")))
 
 		productError := validateInputRequest(txid, productRequestFields)
 		if productError != nil {
-			utils.Logger.Error(fmt.Sprintf("Input validation failed: %v", productError), zap.String("txid", txid))
-			utils.RespondWithError(ctx, http.StatusBadRequest, err.Error())
+			utils.RespondWithError(ctx, productError.Code, productError.Message)
 			return
 		}
 		ctx.Next()

@@ -3,8 +3,10 @@ package db
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/ankit/project/message-quening-system/internal/constants"
 	"github.com/ankit/project/message-quening-system/internal/models"
@@ -36,11 +38,20 @@ func (p postgres) CreateProduct(ctx *gin.Context, productDetails models.Product)
 	_, err := p.db.Exec(query, productDetails.ProductID, productDetails.ProductName, productDetails.ProductDescription, productDetails.ProductImages, productDetails.ProductPrice,
 		productDetails.CompressedProductImages, productDetails.CreatedAt, productDetails.UpdatedAt)
 	if err != nil {
-		log.Println("unable to insert product details info in table : ", err)
-		return &producterror.ProductError{
-			Trace:   ctx.GetHeader(constants.TransactionID),
-			Code:    http.StatusInternalServerError,
-			Message: "unable to add product details",
+		log.Println("unable to insert product details info in table : ", err, "/n", err.Error())
+		if strings.Contains(err.Error(), "duplicate key value") {
+			fmt.Println("Hello ")
+			return &producterror.ProductError{
+				Trace:   ctx.Request.Header.Get(constants.TransactionID),
+				Code:    http.StatusBadRequest,
+				Message: "product already added",
+			}
+		} else {
+			return &producterror.ProductError{
+				Trace:   ctx.Request.Header.Get(constants.TransactionID),
+				Code:    http.StatusInternalServerError,
+				Message: "unable to add product details",
+			}
 		}
 	}
 	return nil

@@ -43,13 +43,13 @@ func main() {
 	consumer.IntializeKafkaConsumerReader()
 	defer consumer.KafkaReader.Close()
 	// Create a channel to receive messages from the producer
-	utils.InitChannel()
+	//utils.InitChannel()
 
 	utils.InitLogClient()
-	productClient := service.NewProductService(postgres)
+	_ = service.NewProductService(postgres)
 
-	go productClient.ConsumeMessages(utils.MessageChan)
-	go productClient.ProduceMessages(utils.MessageChan)
+	// go productClient.ConsumeMessages(utils.MessageChan)
+	// go productClient.ProduceMessages(utils.MessageChan)
 
 	server.Start()
 }
