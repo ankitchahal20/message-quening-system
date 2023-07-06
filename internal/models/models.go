@@ -14,6 +14,7 @@ type Product struct {
 	UpdatedAt               time.Time `json:"updated_at"`
 }
 
+// Message represents the structure of a message that is send to MessageQueue
 type Message struct {
 	ProductID string  `json:"product_id"`
 	Product   Product `json:"product"`

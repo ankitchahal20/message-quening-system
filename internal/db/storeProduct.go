@@ -35,8 +35,13 @@ func (p postgres) CreateProduct(ctx *gin.Context, productDetails models.Product)
 	query := `INSERT INTO products(product_id, product_name, product_description, product_images, product_price, 
 		compressed_product_images, created_at, updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`
 
-	_, err := p.db.Exec(query, productDetails.ProductID, productDetails.ProductName, productDetails.ProductDescription, productDetails.ProductImages, productDetails.ProductPrice,
-		productDetails.CompressedProductImages, productDetails.CreatedAt, productDetails.UpdatedAt)
+	// PostgreSQL driver for Go does not support passing slices directly as arguments to SQL queries.
+	// So, convert the slice of strings into a supported data type for the query.
+	productImagesArray := pq.Array(productDetails.ProductImages)
+	compressedImagesArray := pq.Array(productDetails.CompressedProductImages)
+
+	_, err := p.db.Exec(query, productDetails.ProductID, productDetails.ProductName, productDetails.ProductDescription, productImagesArray, productDetails.ProductPrice,
+		compressedImagesArray, productDetails.CreatedAt, productDetails.UpdatedAt)
 	if err != nil {
 		log.Println("unable to insert product details info in table : ", err, "/n", err.Error())
 		if strings.Contains(err.Error(), "duplicate key value") {
@@ -61,22 +66,28 @@ func (p postgres) GetProductImages(ctx *gin.Context, productID int) ([]string, *
 	query := `SELECT product_images FROM products WHERE product_id=$1`
 	var images []string
 	if err := p.db.QueryRow(query, productID).Scan(pq.Array(&images)); err != nil {
-		log.Fatal(err)
+		return images, &producterror.ProductError{
+			Code:    http.StatusInternalServerError,
+			Message: "Unable to get product images from DB",
+			Trace:   ctx.Request.Header.Get(constants.TransactionID),
+		}
 	}
 	return images, nil
 
 }
 
 func (p postgres) UpdateCompressedProductImages(ctx *gin.Context, productID int, compressedImages []string) *producterror.ProductError {
-	stmt, err := p.db.Prepare("UPDATE products SET compressed_product_images= $1 WHERE product_id = $2")
-	if err != nil {
-		// handle error
-	}
-	defer stmt.Close()
+	query := "UPDATE products SET compressed_product_images = $1 WHERE product_id = $2"
+	compressedImagesArray := pq.Array(compressedImages)
 
-	_, err = stmt.Exec(compressedImages, productID)
+	_, err := p.db.Exec(query, compressedImagesArray, productID)
 	if err != nil {
-		// handle error
+		return &producterror.ProductError{
+			Code:    http.StatusInternalServerError,
+			Message: "Unable to add compressed images in DB",
+			Trace:   ctx.Request.Header.Get(constants.TransactionID),
+		}
 	}
+
 	return nil
 }

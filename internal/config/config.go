@@ -1,15 +1,14 @@
 package config
 
+import (
+	"log"
+
+	"github.com/pelletier/go-toml"
+)
+
 var (
 	globalConfig GlobalConfig
 )
-
-func SetConfig(cfg GlobalConfig) {
-	globalConfig = cfg
-}
-func GetConfig() GlobalConfig {
-	return globalConfig
-}
 
 type GlobalConfig struct {
 	Database Database `toml:"database"`
@@ -34,4 +33,29 @@ type Server struct {
 type Kafka struct {
 	Topic          string `toml:"topic"`
 	Broker1Address string `toml:"broker_1_address"`
+}
+
+func SetConfig(cfg GlobalConfig) {
+	globalConfig = cfg
+}
+func GetConfig() GlobalConfig {
+	return globalConfig
+}
+
+func InitGlobalConfig() error {
+	config, err := toml.LoadFile("./config/default.toml")
+	if err != nil {
+		log.Printf("Error while loading deafault.toml file : %v ", err)
+		return err
+	}
+
+	var appConfig GlobalConfig
+	err = config.Unmarshal(&appConfig)
+	if err != nil {
+		log.Printf("Error while unmarshalling config : %v", err)
+		return err
+	}
+
+	SetConfig(appConfig)
+	return nil
 }

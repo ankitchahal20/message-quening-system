@@ -5,13 +5,12 @@ import (
 
 	"github.com/ankit/project/message-quening-system/cmd/consumer"
 	"github.com/ankit/project/message-quening-system/cmd/producer"
-	globalconfig "github.com/ankit/project/message-quening-system/internal/config"
+	"github.com/ankit/project/message-quening-system/internal/config"
 	"github.com/ankit/project/message-quening-system/internal/db"
 	"github.com/ankit/project/message-quening-system/internal/server"
 	"github.com/ankit/project/message-quening-system/internal/service"
 	"github.com/ankit/project/message-quening-system/internal/utils"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pelletier/go-toml"
 
 	"go.uber.org/zap"
 )
@@ -20,18 +19,10 @@ func main() {
 	logger, _ := zap.NewDevelopment()
 	logger.Info("Main started")
 
-	config, err := toml.LoadFile("./config/default.toml")
+	err := config.InitGlobalConfig()
 	if err != nil {
-		log.Fatalf("Error while loading deafault.toml file")
+		log.Fatalf("Unable to initialize global config")
 	}
-
-	var appConfig globalconfig.GlobalConfig
-	err = config.Unmarshal(&appConfig)
-	if err != nil {
-		log.Fatalf("Error while unmarshalling config")
-	}
-
-	globalconfig.SetConfig(appConfig)
 
 	postgres, err := db.New()
 	if err != nil {
