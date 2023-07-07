@@ -1,4 +1,4 @@
-package producer
+package kafka
 
 import (
 	"github.com/ankit/project/message-quening-system/internal/config"

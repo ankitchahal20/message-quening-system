@@ -18,7 +18,7 @@ import (
 )
 
 func registerCreateProductEndPoints(handler gin.IRoutes) {
-	handler.POST(constants.ForwardSlash+strings.Join([]string{constants.Product, constants.ForwardSlash, constants.Create}, constants.ForwardSlash), service.CreateProduct())
+	handler.POST(constants.ForwardSlash+strings.Join([]string{constants.Product, constants.ForwardSlash, constants.Create}, constants.ForwardSlash), service.AddProduct())
 }
 
 func Start() {

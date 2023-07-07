@@ -3,22 +3,17 @@ package main
 import (
 	"log"
 
-	"github.com/ankit/project/message-quening-system/cmd/consumer"
-	"github.com/ankit/project/message-quening-system/cmd/producer"
 	"github.com/ankit/project/message-quening-system/internal/config"
 	"github.com/ankit/project/message-quening-system/internal/db"
+	"github.com/ankit/project/message-quening-system/internal/kafka"
 	"github.com/ankit/project/message-quening-system/internal/server"
 	"github.com/ankit/project/message-quening-system/internal/service"
 	"github.com/ankit/project/message-quening-system/internal/utils"
 	_ "github.com/jackc/pgx/v5/stdlib"
-
-	"go.uber.org/zap"
 )
 
 func main() {
-	logger, _ := zap.NewDevelopment()
-	logger.Info("Main started")
-
+	utils.InitLogClient()
 	err := config.InitGlobalConfig()
 	if err != nil {
 		log.Fatalf("Unable to initialize global config")
@@ -29,9 +24,9 @@ func main() {
 		log.Fatal("Unable to connect to DB : ", err)
 	}
 
-	kafkaWriter := producer.IntializeKafkaProducerWriter()
+	kafkaWriter := kafka.IntializeKafkaProducerWriter()
 	defer kafkaWriter.Close()
-	kafkaReader := consumer.IntializeKafkaConsumerReader()
+	kafkaReader := kafka.IntializeKafkaConsumerReader()
 	defer kafkaReader.Close()
 
 	utils.InitLogClient()

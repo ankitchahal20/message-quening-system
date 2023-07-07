@@ -63,8 +63,6 @@ func (w *MockKafkaWriter) WriteMessages(ctx context.Context, msgs ...kafka.Messa
 
 func (m *MockProductService) ProduceMessages(ctx *gin.Context, messageChan <-chan models.Message, mockWriter *MockKafkaWriter) error {
 	for message := range messageChan {
-		fmt.Println("Producing message:", message)
-
 		// Serialize the message data
 		messageData, err := json.Marshal(message)
 		if err != nil {
@@ -79,7 +77,6 @@ func (m *MockProductService) ProduceMessages(ctx *gin.Context, messageChan <-cha
 
 		// Write the Kafka message to the writer
 		err = mockWriter.WriteMessages(ctx, kafkaMessage)
-		fmt.Println("WERR : ", err)
 		if err != nil {
 			return err
 		}

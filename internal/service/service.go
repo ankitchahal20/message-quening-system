@@ -53,7 +53,7 @@ func NewProductService(conn db.ProductDBService, writer KafkaWriter, reader Kafk
 	return productClient
 }
 
-func CreateProduct() func(ctx *gin.Context) {
+func AddProduct() func(ctx *gin.Context) {
 	return func(context *gin.Context) {
 		var productDetails models.Product
 		if err := context.ShouldBindBodyWith(&productDetails, binding.JSON); err == nil {

@@ -1,7 +1,7 @@
-package consumer
+package kafka
 
 import (
-	"github.com/ankit/project/message-quening-system/internal/config"
+	config "github.com/ankit/project/message-quening-system/internal/config"
 	"github.com/ankit/project/message-quening-system/internal/constants"
 	"github.com/segmentio/kafka-go"
 )

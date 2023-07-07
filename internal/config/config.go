@@ -43,7 +43,7 @@ func GetConfig() GlobalConfig {
 }
 
 func InitGlobalConfig() error {
-	config, err := toml.LoadFile("./config/default.toml")
+	config, err := toml.LoadFile("./../config/default.toml")
 	if err != nil {
 		log.Printf("Error while loading deafault.toml file : %v ", err)
 		return err
