@@ -49,12 +49,12 @@ func ValidateInputRequest() gin.HandlerFunc {
 }
 
 func validateInputRequest(txid string, productRequestFields models.Product) *producterror.ProductError {
-	if productRequestFields.ProductID == nil {
-		utils.Logger.Error("Product id missing", zap.String("txid", txid))
+	if productRequestFields.UserID == nil {
+		utils.Logger.Error("user id missing", zap.String("txid", txid))
 		return &producterror.ProductError{
 			Trace:   txid,
 			Code:    http.StatusBadRequest,
-			Message: "Product id missing",
+			Message: "user id missing",
 		}
 	}
 

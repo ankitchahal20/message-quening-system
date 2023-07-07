@@ -8,7 +8,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -74,16 +73,13 @@ func AddProduct() func(ctx *gin.Context) {
 				}
 			}()
 
-			product, err := productClient.createProduct(context, productDetails)
+			productID, err := productClient.createProduct(context, productDetails)
 			if err != nil {
-				context.Writer.Header().Set("Custom-Header", "Hello, World!")
 				context.JSON(err.Code, err)
 			} else {
-
-				context.Writer.Header().Set("Custom-Header", "Hello, World!")
 				context.JSON(http.StatusOK, map[string]string{
-					"Product Name": product.ProductName,
-					"Product ID":   fmt.Sprint(*product.ProductID),
+					//"Product Name": product.ProductName,
+					"Product ID": fmt.Sprint(*productID),
 				})
 			}
 		} else {
@@ -97,24 +93,23 @@ func AddProduct() func(ctx *gin.Context) {
 	}
 }
 
-func (service *ProductService) createProduct(ctx *gin.Context, productDetails models.Product) (models.Product, *producterror.ProductError) {
+func (service *ProductService) createProduct(ctx *gin.Context, productDetails models.Product) (*int, *producterror.ProductError) {
 	productDetails.CreatedAt = time.Now().UTC()
 	productDetails.UpdatedAt = time.Now().UTC()
 
 	utils.Logger.Info("calling db layer for creating the product")
-	err := service.repo.AddProduct(ctx, productDetails)
+	productID, err := service.repo.AddProduct(ctx, productDetails)
 	if err != nil {
-		return models.Product{}, err
+		return nil, err
 	}
 
 	// Send the product ID to the message channel
 	message := models.Message{
-		ProductID: fmt.Sprint(*productDetails.ProductID),
-		Product:   productDetails,
+		ProductID: fmt.Sprint(*productID),
 	}
 	messageChan <- message
 
-	return productDetails, nil
+	return productID, nil
 }
 
 func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-chan models.Message, writer KafkaWriter) error {
@@ -125,6 +120,7 @@ func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-c
 			utils.Logger.Error("Error marshaling message :", zap.String("error", err.Error()))
 			continue
 		}
+		utils.Logger.Info(fmt.Sprintf("Producer successfully marshalls the productId %v", message.ProductID))
 
 		// Create a Kafka message with the serialized data
 		kafkaMessage := kafka.Message{
@@ -137,6 +133,7 @@ func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-c
 		if err != nil {
 			utils.Logger.Error("Error writing message to Kafka:", zap.String("error", err.Error()))
 		}
+		utils.Logger.Info(fmt.Sprintf("Producer successfully puts the productId %v on message queue", message.ProductID))
 	}
 	return nil
 }
@@ -150,6 +147,7 @@ func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan cha
 			utils.Logger.Error("Error reading message from Kafka:", zap.String("error", err.Error()))
 			return fmt.Errorf("error reading message from Kafka: %w", err)
 		}
+		utils.Logger.Info("Consumser successfully reads the message from message queue")
 
 		// Deserialize the kafka message data into a Message struct
 		receivedMessage := models.Message{}
@@ -158,6 +156,7 @@ func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan cha
 			utils.Logger.Error("Error marshaling message :", zap.String("error", err.Error()))
 			return fmt.Errorf("error unmarshaling message: %w", err)
 		}
+		utils.Logger.Info(fmt.Sprintf("Consumser successfully unmarshalls the message, ProductId : %v", receivedMessage.ProductID))
 
 		// Download and compress the product images
 		compressedImages, productErr := service.downloadAndCompressProductImages(ctx, receivedMessage)
@@ -166,6 +165,8 @@ func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan cha
 			return fmt.Errorf("error downloading and compressing images: %v", productErr)
 		}
 
+		utils.Logger.Info(fmt.Sprintf("Consumser has successfully downloaded and compress the images for productId : %v", receivedMessage.ProductID))
+
 		// Update the database with the compressed_product_images
 		productID, _ := strconv.Atoi(receivedMessage.ProductID)
 		producterr := service.updateCompressedProductImages(ctx, productID, compressedImages)
@@ -173,8 +174,7 @@ func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan cha
 			utils.Logger.Error("unable to update compress images in db :", zap.String("error", err.Error()))
 			return fmt.Errorf("error updating compressed images in db: %v", productErr)
 		}
-		// Print the processed message
-		log.Printf("Processed message: ProductID=%s, ProductName=%s\n", receivedMessage.ProductID, receivedMessage.Product.ProductName)
+		utils.Logger.Info(fmt.Sprintf("Consumser has successfully updated the db with compressed images path for productId : %v", receivedMessage.ProductID))
 	}
 }
 
@@ -253,7 +253,6 @@ func (service *ProductService) getProductImages(ctx *gin.Context, productID int)
 func (service *ProductService) getImage(ctx *gin.Context, imageURL string, msg models.Message, index int, outputPath string) error {
 	txid := ctx.Request.Header.Get(constants.TransactionID)
 
-	fmt.Println("outputPath : ", outputPath)
 	// Create the output file
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
@@ -293,9 +292,6 @@ func (service *ProductService) resizeImage(ctx *gin.Context, inputPath, outputPa
 	defer file.Close()
 
 	// Decode the input image
-	fmt.Println("file : ", file.Name())
-	a := file.Name()
-	fmt.Println("a b ", a)
 	img, _, err := image.Decode(file)
 	if err != nil {
 		utils.Logger.Error("failed to open input file", zap.String("error", err.Error()), zap.String("txid", txid))

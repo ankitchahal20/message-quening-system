@@ -107,7 +107,7 @@ func (m *MockProductService) ConsumeMessages(ctx *gin.Context, messageChan chan 
 		}
 
 		// Update the database with the compressed_product_images
-		err = m.UpdateCompressedProductImages(ctx, fmt.Sprint(receivedMessage.Product.ProductID), compressedImages)
+		err = m.UpdateCompressedProductImages(ctx, fmt.Sprint(receivedMessage.ProductID), compressedImages)
 		if err != nil {
 			utils.Logger.Error("Error updating compressed images in DB:", zap.Error(err))
 			return fmt.Errorf("error updating compressed images in DB: %w", err)

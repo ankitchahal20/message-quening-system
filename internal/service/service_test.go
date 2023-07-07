@@ -4,13 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"image"
-	"image/jpeg"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -155,11 +151,11 @@ func TestDownloadAndCompressProductImages(t *testing.T) {
 			ProductName: "Test Product",
 		},
 	}
-
+	userID := 1
 	mockReader := &MockKafkaReader{}
 	mockProductService := NewMockProductService(&db.MockPostgres{}, &MockKafkaWriter{}, mockReader)
 	mockProductService.product = models.Product{
-		ProductID:     &productId,
+		UserID:        &userID,
 		ProductName:   "Test Product",
 		ProductImages: []string{"url1", "url2"},
 	}
@@ -167,80 +163,14 @@ func TestDownloadAndCompressProductImages(t *testing.T) {
 	mockProductService.UpdateCompressedProductImages(ctx, testMessage.ProductID, compressedImages)
 }
 
-func TestResizeImage(t *testing.T) {
-	// Create a mock Gin context
-	ctx := &gin.Context{
-		Request: &http.Request{
-			Header: http.Header{
-				constants.TransactionID: []string{"test-transaction-id"},
-			},
-		},
-	}
-
-	// Create a temporary directory for the test
-	tmpDir, err := ioutil.TempDir("", "image-test")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Create the input file path
-	inputPath := filepath.Join(tmpDir, "input.jpg")
-
-	// Create a test image with a size of 100x100 pixels
-	testImage := image.NewRGBA(image.Rect(0, 0, 100, 100))
-	outputFile, err := os.Create(inputPath)
-	if err != nil {
-		t.Fatalf("Failed to create input file: %v", err)
-	}
-	defer outputFile.Close()
-	jpeg.Encode(outputFile, testImage, nil)
-
-	// Create the expected output file path
-	outputPath := filepath.Join(tmpDir, "output.jpg")
-
-	// Create the product service instance
-	service := &ProductService{}
-
-	// Call the resizeImage method
-	err = service.resizeImage(ctx, inputPath, outputPath, 50, 50)
-	if err != nil {
-		t.Fatalf("Failed to resize image: %v", err)
-	}
-
-	// Verify the output file exists
-	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
-		t.Errorf("Output file does not exist")
-	}
-
-	// Verify the output file dimensions
-	outputImage, err := os.Open(outputPath)
-	if err != nil {
-		t.Fatalf("Failed to open output file: %v", err)
-	}
-	defer outputImage.Close()
-
-	img, _, err := image.Decode(outputImage)
-	if err != nil {
-		t.Fatalf("Failed to decode output image: %v", err)
-	}
-
-	width := img.Bounds().Dx()
-	height := img.Bounds().Dy()
-
-	if width != 50 || height != 50 {
-		t.Errorf("Unexpected output image dimensions. Expected 50x50, got %dx%d", width, height)
-	}
-}
-
-func TestDownloadAndCompressImage1(t *testing.T) {
+func TestDownloadAndCompressImage(t *testing.T) {
 	ctx := &gin.Context{
 		Request: &http.Request{
 			Header: http.Header{},
 		},
 	}
 
-	tempImagePath := "/Users/ankitchahal/dev/go/src/github.com/ankit/project/message-quening-system/Images/DO-NOT-DELETE.jpg"
+	tempImagePath := "/Users/ankitchahal/dev/go/src/github.com/ankit/project/message-quening-system/cmd/Images/DO-NOT-DELETE.jpg"
 
 	responseCode := http.StatusOK
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -46,23 +46,24 @@ Before running the Message Queueing System, make sure you have the following pre
 5. Defaults.toml
 Add the values to defaults.toml and execute `go run main.go` from the cmd directory.
 
-## Usage
-Sample payload to test the project is mentioned below.
-   ```
-   {
-      "product_id": 230,
-      "product_name": "ANC17",
-      "product_description": "Nice Project",
-      "product_images": ["https://cdn.pixabay.com/photo/2013/10/15/09/12/flower-195893_150.jpg","https://images.pexels.com/photos/2014422/pexels-photo-2014422.jpeg","https://images.pexels.com/photos/2014421/pexels-photo-2014421.jpeg"],
-      "product_price": 10
-   }
-   ```
-![Image Description](images/example.png)
+curl -i -k -X POST \
+  http://127.0.0.1:8080/v1/product/create \
+  -H "transaction-id: 288a59c1-b826-42f7-a3cd-bf2911a5c351" \
+  -H "content-type: application/json" \
+  -d '{
+  "user_id": 11,
+  "product_name": "ANC17",
+  "product_description": "Nice Project",
+  "product_images": ["https://cdn.pixabay.com/photo/2013/10/15/09/12/flower-195893_150.jpg","https://images.pexels.com/photos/2014422/pexels-photo-2014422.jpeg","https://images.pexels.com/photos/2014421/pexels-photo-2014421.jpeg"],
+  "product_price": 10
+}'
+
 ## Project Structure
 
 The project follows a standard Go project structure:
 
 - `cmd/`: Contains the main entry points for the application.
+   - `Images/`: Stores the compressed images locally
 - `config/`: Configuration file for the application.
 - `internal/`: Contains the internal packages and modules of the application.
   - `config/`: Global configuration which can be used anywhere in the application.

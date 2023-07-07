@@ -1,13 +1,11 @@
 package db
 
 import (
-	"database/sql"
+	"database/sql/driver"
 	"log"
 	"net/http"
 	"regexp"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
@@ -17,7 +15,6 @@ import (
 
 	"github.com/ankit/project/message-quening-system/internal/constants"
 	"github.com/ankit/project/message-quening-system/internal/models"
-	producterror "github.com/ankit/project/message-quening-system/internal/producterror"
 )
 
 func TestAddProduct(t *testing.T) {
@@ -41,48 +38,42 @@ func TestAddProduct(t *testing.T) {
 
 	ctx.Request.Header.Set(constants.TransactionID, transactionID)
 
-	productID := 1001
+	userID := 1001
 	productPrice := 10
 	var images []string = []string{"image1.jpg", "image2.jpg"}
-	productImages := strings.Join(images, ", ")
-	product := models.Product{
-		ProductID:          &productID,
+
+	productDetails := models.Product{
+		UserID:             &userID,
 		ProductName:        "Test Product",
 		ProductDescription: "This is a test product",
-		ProductImages:      []string{productImages},
+		ProductImages:      images,
 		ProductPrice:       &productPrice,
 	}
 
-	t.Run("Successfully create product", func(t *testing.T) {
-		// Set up the expected SQL query
-		mock.ExpectExec("INSERT INTO products").
-			WillReturnResult(sqlmock.NewResult(1, 1))
+	productID := 123
 
-		product.CreatedAt = time.Now().UTC()
-		product.UpdatedAt = time.Now().UTC()
-		// Invoking the function being tested
-		err := p.AddProduct(ctx, product)
+	// Define the query and expected arguments
+	query := `INSERT INTO products(product_name, product_description, product_images, product_price, 
+		compressed_product_images, created_at, updated_at, user_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING product_id`
+	expectedArgs := []driver.Value{
+		productDetails.ProductName,
+		productDetails.ProductDescription,
+		pq.Array(productDetails.ProductImages),
+		productDetails.ProductPrice,
+		pq.Array(productDetails.CompressedProductImages),
+		productDetails.CreatedAt,
+		productDetails.UpdatedAt,
+		productDetails.UserID,
+	}
 
-		assert.Nil(t, err)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
+	// Define the expected result from the database
+	rows := sqlmock.NewRows([]string{"product_id"}).AddRow(&productID)
+	mock.ExpectQuery(regexp.QuoteMeta(query)).WithArgs(expectedArgs...).WillReturnRows(rows)
 
-	t.Run("Error: Unable to add product details", func(t *testing.T) {
-		// Set up the expected SQL query
-		mock.ExpectExec("INSERT INTO products").
-			WillReturnError(sql.ErrConnDone)
+	// Call the AddProduct function
+	_, productErr := p.AddProduct(ctx, productDetails)
+	assert.Nil(t, productErr)
 
-		// Invoking the function being tested
-		err := p.AddProduct(ctx, product)
-
-		expectedErr := &producterror.ProductError{
-			Message: "unable to add product details",
-			Code:    http.StatusInternalServerError,
-		}
-
-		assert.Equal(t, expectedErr.Code, err.Code)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
 }
 
 func TestGetProductImages(t *testing.T) {

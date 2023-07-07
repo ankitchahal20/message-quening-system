@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -18,7 +17,7 @@ import (
 type postgres struct{ db *sql.DB }
 
 type ProductDBService interface {
-	AddProduct(*gin.Context, models.Product) *producterror.ProductError
+	AddProduct(*gin.Context, models.Product) (*int, *producterror.ProductError)
 	GetProductImages(*gin.Context, int) ([]string, *producterror.ProductError)
 	UpdateCompressedProductImages(*gin.Context, int, []string) *producterror.ProductError
 }
@@ -31,35 +30,42 @@ var (
 	ErrZeroRowsFound      = errors.New("no row found in DB for the given product id")
 )
 
-func (p postgres) AddProduct(ctx *gin.Context, productDetails models.Product) *producterror.ProductError {
-	query := `INSERT INTO products(product_id, product_name, product_description, product_images, product_price, 
-		compressed_product_images, created_at, updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`
+func (p postgres) AddProduct(ctx *gin.Context, productDetails models.Product) (*int, *producterror.ProductError) {
+	query := `INSERT INTO products(product_name, product_description, product_images, product_price, 
+		compressed_product_images, created_at, updated_at, user_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING product_id`
 
 	// PostgreSQL driver for Go does not support passing slices directly as arguments to SQL queries.
 	// So, convert the slice of strings into a supported data type for the query.
 	productImagesArray := pq.Array(productDetails.ProductImages)
 	compressedImagesArray := pq.Array(productDetails.CompressedProductImages)
 
-	_, err := p.db.Exec(query, productDetails.ProductID, productDetails.ProductName, productDetails.ProductDescription, productImagesArray, productDetails.ProductPrice,
-		compressedImagesArray, productDetails.CreatedAt, productDetails.UpdatedAt)
+	productID := 0
+	err := p.db.QueryRow(query, productDetails.ProductName, productDetails.ProductDescription, productImagesArray, productDetails.ProductPrice,
+		compressedImagesArray, productDetails.CreatedAt, productDetails.UpdatedAt, productDetails.UserID).Scan(&productID)
 	if err != nil {
 		log.Println("unable to insert product details info in table : ", err, "/n", err.Error())
 		if strings.Contains(err.Error(), "duplicate key value") {
-			fmt.Println("Hello ")
-			return &producterror.ProductError{
+			return nil, &producterror.ProductError{
 				Trace:   ctx.Request.Header.Get(constants.TransactionID),
 				Code:    http.StatusBadRequest,
 				Message: "product already added",
 			}
+		} else if strings.Contains(err.Error(), "violates foreign key constraint") {
+			return nil, &producterror.ProductError{
+				Trace:   ctx.Request.Header.Get(constants.TransactionID),
+				Code:    http.StatusBadRequest,
+				Message: "user id is not found",
+			}
 		} else {
-			return &producterror.ProductError{
+			return nil, &producterror.ProductError{
 				Trace:   ctx.Request.Header.Get(constants.TransactionID),
 				Code:    http.StatusInternalServerError,
 				Message: "unable to add product details",
 			}
 		}
 	}
-	return nil
+
+	return &productID, nil
 }
 
 func (p postgres) GetProductImages(ctx *gin.Context, productID int) ([]string, *producterror.ProductError) {
