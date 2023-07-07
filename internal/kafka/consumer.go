@@ -13,8 +13,9 @@ func IntializeKafkaConsumerReader() *kafka.Reader {
 		Topic:    cfg.Kafka.Topic,
 		GroupID:  constants.Group,
 		MaxBytes: 1e6,
+		// MaxWait:  1000 * time.Millisecond,
 		//// if you set it to `kafka.LastOffset` it will only consume new messages
-		StartOffset: kafka.LastOffset,
+		StartOffset: kafka.FirstOffset,
 	})
 	return KafkaReader
 }

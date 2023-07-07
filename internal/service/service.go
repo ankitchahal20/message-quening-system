@@ -57,7 +57,10 @@ func AddProduct() func(ctx *gin.Context) {
 		var productDetails models.Product
 		if err := context.ShouldBindBodyWith(&productDetails, binding.JSON); err == nil {
 			messageChan = make(chan models.Message)
+			//var wg sync.WaitGroup
+			//wg.Add(2)
 			go func() {
+				//defer wg.Done()
 				err := productClient.ProduceMessages(context, messageChan, productClient.writer)
 				if err != nil {
 					utils.Logger.Error("Error producing messages:", zap.Error(err))
@@ -66,6 +69,7 @@ func AddProduct() func(ctx *gin.Context) {
 			}()
 
 			go func() {
+				//defer wg.Done()
 				err := productClient.ConsumeMessages(context, messageChan, productClient.reader)
 				if err != nil {
 					utils.Logger.Error("Error consuming messages:", zap.Error(err))
@@ -74,6 +78,7 @@ func AddProduct() func(ctx *gin.Context) {
 			}()
 
 			productID, err := productClient.createProduct(context, productDetails)
+			//wg.Wait()
 			if err != nil {
 				context.JSON(err.Code, err)
 			} else {
@@ -139,7 +144,6 @@ func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-c
 }
 
 func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan chan<- models.Message, reader KafkaReader) error {
-
 	for {
 		// Read the next message from the Kafka topic
 		message, err := reader.ReadMessage(context.Background())
@@ -229,7 +233,11 @@ func (service *ProductService) downloadAndCompressProductImages(ctx *gin.Context
 
 		path, err := os.Getwd()
 		if err != nil {
-			fmt.Println(err)
+			return imagesPath, &producterror.ProductError{
+				Code:    http.StatusInternalServerError,
+				Message: "failed to pwd path",
+				Trace:   ctx.Request.Header.Get(constants.TransactionID),
+			}
 		}
 
 		imagePath := path + "/" + outputPath

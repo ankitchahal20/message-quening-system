@@ -11,10 +11,6 @@ import (
 var Logger *zap.Logger
 var MessageChan chan models.Message
 
-func InitChannel() {
-	MessageChan = make(chan models.Message)
-}
-
 func InitLogClient() {
 	Logger, _ = zap.NewDevelopment()
 }
