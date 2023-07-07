@@ -20,7 +20,7 @@ import (
 	producterror "github.com/ankit/project/message-quening-system/internal/producterror"
 )
 
-func TestCreateProduct(t *testing.T) {
+func TestAddProduct(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		log.Fatalf("error creating mock database: %v", err)
@@ -61,7 +61,7 @@ func TestCreateProduct(t *testing.T) {
 		product.CreatedAt = time.Now().UTC()
 		product.UpdatedAt = time.Now().UTC()
 		// Invoking the function being tested
-		err := p.CreateProduct(ctx, product)
+		err := p.AddProduct(ctx, product)
 
 		assert.Nil(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -73,7 +73,7 @@ func TestCreateProduct(t *testing.T) {
 			WillReturnError(sql.ErrConnDone)
 
 		// Invoking the function being tested
-		err := p.CreateProduct(ctx, product)
+		err := p.AddProduct(ctx, product)
 
 		expectedErr := &producterror.ProductError{
 			Message: "unable to add product details",

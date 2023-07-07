@@ -5,14 +5,14 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-var KafkaWriter *kafka.Writer
-
-func IntializeKafkaProducerWriter() {
+func IntializeKafkaProducerWriter() *kafka.Writer {
 	cfg := config.GetConfig()
 
 	// intialize the writer with the broker addresses, and the topic
-	KafkaWriter = kafka.NewWriter(kafka.WriterConfig{
+	KafkaWriter := kafka.NewWriter(kafka.WriterConfig{
 		Brokers: []string{cfg.Kafka.Broker1Address},
 		Topic:   cfg.Kafka.Topic,
 	})
+
+	return KafkaWriter
 }

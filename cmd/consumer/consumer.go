@@ -6,11 +6,9 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-var KafkaReader *kafka.Reader
-
-func IntializeKafkaConsumerReader() {
+func IntializeKafkaConsumerReader() *kafka.Reader {
 	cfg := config.GetConfig()
-	KafkaReader = kafka.NewReader(kafka.ReaderConfig{
+	KafkaReader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{cfg.Kafka.Broker1Address},
 		Topic:    cfg.Kafka.Topic,
 		GroupID:  constants.Group,
@@ -18,4 +16,5 @@ func IntializeKafkaConsumerReader() {
 		//// if you set it to `kafka.LastOffset` it will only consume new messages
 		StartOffset: kafka.LastOffset,
 	})
+	return KafkaReader
 }

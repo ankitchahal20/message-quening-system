@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ankit/project/message-quening-system/cmd/consumer"
-	"github.com/ankit/project/message-quening-system/cmd/producer"
 	"github.com/ankit/project/message-quening-system/internal/config"
 	"github.com/ankit/project/message-quening-system/internal/constants"
 	"github.com/ankit/project/message-quening-system/internal/middleware"
@@ -89,9 +87,6 @@ func waitForShutdown(srv *http.Server) {
 	*/
 
 	srv.Shutdown(ctx)
-
-	producer.KafkaWriter.Close()
-	consumer.KafkaReader.Close()
 
 	log.Println("Shutting down")
 	os.Exit(0)

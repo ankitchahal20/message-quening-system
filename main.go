@@ -29,13 +29,13 @@ func main() {
 		log.Fatal("Unable to connect to DB : ", err)
 	}
 
-	producer.IntializeKafkaProducerWriter()
-	defer producer.KafkaWriter.Close()
-	consumer.IntializeKafkaConsumerReader()
-	defer consumer.KafkaReader.Close()
+	kafkaWriter := producer.IntializeKafkaProducerWriter()
+	defer kafkaWriter.Close()
+	kafkaReader := consumer.IntializeKafkaConsumerReader()
+	defer kafkaReader.Close()
 
 	utils.InitLogClient()
-	_ = service.NewProductService(postgres)
+	_ = service.NewProductService(postgres, kafkaWriter, kafkaReader)
 
 	server.Start()
 }

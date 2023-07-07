@@ -17,8 +17,8 @@ import (
 
 type postgres struct{ db *sql.DB }
 
-type ProductService interface {
-	CreateProduct(*gin.Context, models.Product) *producterror.ProductError
+type ProductDBService interface {
+	AddProduct(*gin.Context, models.Product) *producterror.ProductError
 	GetProductImages(*gin.Context, int) ([]string, *producterror.ProductError)
 	UpdateCompressedProductImages(*gin.Context, int, []string) *producterror.ProductError
 }
@@ -31,7 +31,7 @@ var (
 	ErrZeroRowsFound      = errors.New("no row found in DB for the given product id")
 )
 
-func (p postgres) CreateProduct(ctx *gin.Context, productDetails models.Product) *producterror.ProductError {
+func (p postgres) AddProduct(ctx *gin.Context, productDetails models.Product) *producterror.ProductError {
 	query := `INSERT INTO products(product_id, product_name, product_description, product_images, product_price, 
 		compressed_product_images, created_at, updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`
 

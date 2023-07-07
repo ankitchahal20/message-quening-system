@@ -15,8 +15,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ankit/project/message-quening-system/cmd/consumer"
-	"github.com/ankit/project/message-quening-system/cmd/producer"
 	"github.com/ankit/project/message-quening-system/internal/constants"
 	"github.com/ankit/project/message-quening-system/internal/db"
 	"github.com/ankit/project/message-quening-system/internal/models"
@@ -34,12 +32,23 @@ var imageOutputDir string = "Images"
 var messageChan chan models.Message
 
 type ProductService struct {
-	repo db.ProductService
+	repo   db.ProductDBService
+	writer KafkaWriter
+	reader KafkaReader
 }
 
-func NewProductService(conn db.ProductService) *ProductService {
+type KafkaWriter interface {
+	WriteMessages(ctx context.Context, msgs ...kafka.Message) error
+}
+type KafkaReader interface {
+	ReadMessage(ctx context.Context) (kafka.Message, error)
+}
+
+func NewProductService(conn db.ProductDBService, writer KafkaWriter, reader KafkaReader) *ProductService {
 	productClient = &ProductService{
-		repo: conn,
+		repo:   conn,
+		writer: writer,
+		reader: reader,
 	}
 	return productClient
 }
@@ -50,7 +59,7 @@ func CreateProduct() func(ctx *gin.Context) {
 		if err := context.ShouldBindBodyWith(&productDetails, binding.JSON); err == nil {
 			messageChan = make(chan models.Message)
 			go func() {
-				err := productClient.ProduceMessages(context, messageChan)
+				err := productClient.ProduceMessages(context, messageChan, productClient.writer)
 				if err != nil {
 					utils.Logger.Error("Error producing messages:", zap.Error(err))
 					context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to produce messages"})
@@ -58,7 +67,7 @@ func CreateProduct() func(ctx *gin.Context) {
 			}()
 
 			go func() {
-				err := productClient.ConsumeMessages(context, messageChan)
+				err := productClient.ConsumeMessages(context, messageChan, productClient.reader)
 				if err != nil {
 					utils.Logger.Error("Error consuming messages:", zap.Error(err))
 					context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to consume messages"})
@@ -93,7 +102,7 @@ func (service *ProductService) createProduct(ctx *gin.Context, productDetails mo
 	productDetails.UpdatedAt = time.Now().UTC()
 
 	utils.Logger.Info("calling db layer for creating the product")
-	err := service.repo.CreateProduct(ctx, productDetails)
+	err := service.repo.AddProduct(ctx, productDetails)
 	if err != nil {
 		return models.Product{}, err
 	}
@@ -108,8 +117,7 @@ func (service *ProductService) createProduct(ctx *gin.Context, productDetails mo
 	return productDetails, nil
 }
 
-func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-chan models.Message) error {
-	fmt.Println("Pro")
+func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-chan models.Message, writer KafkaWriter) error {
 	for message := range messageChan {
 		// Serialize the message data
 		messageData, err := json.Marshal(message)
@@ -125,7 +133,7 @@ func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-c
 		}
 
 		// Write the message to the Kafka topic
-		err = producer.KafkaWriter.WriteMessages(ctx, kafkaMessage)
+		err = writer.WriteMessages(ctx, kafkaMessage)
 		if err != nil {
 			utils.Logger.Error("Error writing message to Kafka:", zap.String("error", err.Error()))
 		}
@@ -133,18 +141,18 @@ func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-c
 	return nil
 }
 
-func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan chan<- models.Message) error {
+func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan chan<- models.Message, reader KafkaReader) error {
 
 	for {
 		// Read the next message from the Kafka topic
-		message, err := consumer.KafkaReader.ReadMessage(context.Background())
+		message, err := reader.ReadMessage(context.Background())
 		if err != nil {
 			utils.Logger.Error("Error reading message from Kafka:", zap.String("error", err.Error()))
 			return fmt.Errorf("error reading message from Kafka: %w", err)
 		}
 
 		// Deserialize the kafka message data into a Message struct
-		var receivedMessage models.Message
+		receivedMessage := models.Message{}
 		err = json.Unmarshal(message.Value, &receivedMessage)
 		if err != nil {
 			utils.Logger.Error("Error marshaling message :", zap.String("error", err.Error()))
