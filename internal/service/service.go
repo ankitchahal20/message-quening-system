@@ -195,13 +195,19 @@ func (service *ProductService) downloadAndCompressProductImages(ctx *gin.Context
 		}
 	}
 
+	// Define the output file path
+
 	// Iterate over the product images and download/compress each image
 	i := 1
 	var imagesPath []string
+	var outputPath string
 	for _, imageURL := range productImages {
-		imagePath, err := downloadAndCompressImage(ctx, imageURL, msg, i)
+
+		outputPath = filepath.Join(imageOutputDir, fmt.Sprintf(msg.ProductID+"-"+"image-%d.jpg", i))
+
+		err := service.getImage(ctx, imageURL, msg, i, outputPath)
 		i++
-		imagesPath = append(imagesPath, imagePath)
+
 		if err != nil {
 			utils.Logger.Error("failed to download and compress image", zap.String("error", err.Error()))
 			return imagesPath, &producterror.ProductError{
@@ -210,6 +216,25 @@ func (service *ProductService) downloadAndCompressProductImages(ctx *gin.Context
 				Trace:   ctx.Request.Header.Get(constants.TransactionID),
 			}
 		}
+
+		err = service.resizeImage(ctx, outputPath, outputPath, 50, 50)
+		if err != nil {
+			utils.Logger.Error("failed to resize image", zap.String("error", err.Error()))
+			return imagesPath, &producterror.ProductError{
+				Code:    http.StatusInternalServerError,
+				Message: "failed to resize image",
+				Trace:   ctx.Request.Header.Get(constants.TransactionID),
+			}
+		}
+
+		path, err := os.Getwd()
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		imagePath := path + "/" + outputPath
+
+		imagesPath = append(imagesPath, imagePath)
 	}
 
 	return imagesPath, nil
@@ -225,16 +250,15 @@ func (service *ProductService) getProductImages(ctx *gin.Context, productID int)
 	return images, nil
 }
 
-func downloadAndCompressImage(ctx *gin.Context, imageURL string, msg models.Message, index int) (string, error) {
+func (service *ProductService) getImage(ctx *gin.Context, imageURL string, msg models.Message, index int, outputPath string) error {
 	txid := ctx.Request.Header.Get(constants.TransactionID)
-	// Create the output file path
-	outputPath := filepath.Join(imageOutputDir, fmt.Sprintf(msg.ProductID+"-"+"image-%d.jpg", index))
 
+	fmt.Println("outputPath : ", outputPath)
 	// Create the output file
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
 		utils.Logger.Error("failed to create output file", zap.String("error", err.Error()), zap.String("txid", txid))
-		return "", fmt.Errorf("failed to create output file: %w", err)
+		return fmt.Errorf("failed to create output file: %w", err)
 	}
 
 	defer outputFile.Close()
@@ -243,7 +267,7 @@ func downloadAndCompressImage(ctx *gin.Context, imageURL string, msg models.Mess
 	response, err := http.Get(imageURL)
 	if err != nil {
 		utils.Logger.Error("failed to download image", zap.String("error", err.Error()), zap.String("txid", txid))
-		return "", fmt.Errorf("failed to download image: %w", err)
+		return fmt.Errorf("failed to download image: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -251,25 +275,14 @@ func downloadAndCompressImage(ctx *gin.Context, imageURL string, msg models.Mess
 	_, err = io.Copy(outputFile, response.Body)
 	if err != nil {
 		utils.Logger.Error("failed to write image data", zap.String("error", err.Error()), zap.String("txid", txid))
-		return "", fmt.Errorf("failed to write image data: %w", err)
+		return fmt.Errorf("failed to write image data: %w", err)
 	}
 
-	//Resize the image
-	err = resizeImage(ctx, outputPath, outputPath, 50, 50)
-	if err != nil {
-		utils.Logger.Error("failed to resize image", zap.String("error", err.Error()), zap.String("txid", txid))
-		return "", fmt.Errorf("failed to resize image: %w", err)
-	}
+	return nil
 
-	path, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-	}
-	utils.Logger.Info("Image downloaded and compressed: %s\n", zap.String("image path ", path+"/"+outputPath), zap.String("txid", txid))
-	return path + "/" + outputPath, nil
 }
 
-func resizeImage(ctx *gin.Context, inputPath, outputPath string, width, height int) error {
+func (service *ProductService) resizeImage(ctx *gin.Context, inputPath, outputPath string, width, height int) error {
 	txid := ctx.Request.Header.Get(constants.TransactionID)
 	// Open the input file
 	file, err := os.Open(inputPath)
@@ -280,6 +293,9 @@ func resizeImage(ctx *gin.Context, inputPath, outputPath string, width, height i
 	defer file.Close()
 
 	// Decode the input image
+	fmt.Println("file : ", file.Name())
+	a := file.Name()
+	fmt.Println("a b ", a)
 	img, _, err := image.Decode(file)
 	if err != nil {
 		utils.Logger.Error("failed to open input file", zap.String("error", err.Error()), zap.String("txid", txid))

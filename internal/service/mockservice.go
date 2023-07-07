@@ -21,6 +21,7 @@ type MockProductService struct {
 	MockRepo db.MockProductDBService
 	writer   MockKafkaWriter
 	reader   MockKafkaReader
+	product  models.Product
 }
 
 func NewMockProductService(conn db.MockProductDBService, writer *MockKafkaWriter, reader *MockKafkaReader) *MockProductService {
@@ -118,29 +119,19 @@ func (m *MockProductService) ConsumeMessages(ctx *gin.Context, messageChan chan 
 }
 
 func (m *MockProductService) DownloadAndCompressProductImages(ctx *gin.Context, msg models.Message) ([]string, *producterror.ProductError) {
+	// Simple mock implementation
 	return []string{"image1", "image2"}, nil
 }
 
 func (m *MockProductService) UpdateCompressedProductImages(ctx *gin.Context, productID string, compressedImages []string) error {
-	fmt.Println("Image compressed successfully")
+	m.product.CompressedProductImages = compressedImages
+	fmt.Println(" update image compressed successfully")
 	return nil
 }
 
 func (m *MockProductService) CreateProduct(ctx context.Context, product models.Product) error {
 	// Mock implementation for creating a product in the database
 	log.Println("Creating product:", product)
-	return nil
-}
-
-func (m *MockProductService) GetProduct(ctx context.Context, productID int) (models.Product, error) {
-	// Mock implementation for retrieving a product from the database
-	log.Println("Getting product:", productID)
-	return models.Product{}, nil
-}
-
-func (m *MockProductService) UpdateProduct(ctx context.Context, productID int, updatedProduct models.Product) error {
-	// Mock implementation for updating a product in the database
-	log.Println("Updating product:", productID)
 	return nil
 }
 
