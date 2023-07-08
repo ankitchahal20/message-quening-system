@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -27,7 +26,7 @@ type MockProductService struct {
 	writer   MockKafkaWriter
 	reader   MockKafkaReader
 	Product  *models.Product
-	user     *models.User
+	User     *models.User
 }
 
 func NewMockProductService(conn db.MockProductDBService, writer *MockKafkaWriter, reader *MockKafkaReader) *MockProductService {
@@ -69,31 +68,33 @@ func (w *MockKafkaWriter) WriteMessages(ctx context.Context, msgs ...kafka.Messa
 }
 
 func (m *MockProductService) produceMessages(ctx *gin.Context, messageChan chan models.Message, mockWriter *MockKafkaWriter) error {
-	//defer close(messageChan)
 	for message := range messageChan {
 		// Serialize the message data
 		messageData, err := json.Marshal(message)
 		if err != nil {
 			return err
 		}
-
+		utils.Logger.Info("producers marshall the message")
 		// Create a Kafka message with the serialized data
 		kafkaMessage := kafka.Message{
 			Key:   []byte(message.ProductID),
 			Value: messageData,
 		}
-
+		fmt.Println("2")
+		utils.Logger.Info("producers forms the kafka message")
 		// Write the Kafka message to the writer
 		err = mockWriter.WriteMessages(ctx, kafkaMessage)
 		if err != nil {
 			return err
+		} else {
+			utils.Logger.Info("producers writes the kafka message")
+			break
 		}
 	}
 	return nil
 }
 
 func (m *MockProductService) consumeMessages(ctx *gin.Context, messageChan chan models.Message, mockReader *MockKafkaReader) error {
-	defer close(messageChan)
 	for {
 		message, err := mockReader.ReadMessage(context.Background())
 		if err != nil {
@@ -124,7 +125,12 @@ func (m *MockProductService) consumeMessages(ctx *gin.Context, messageChan chan 
 			return fmt.Errorf("error updating compressed images in DB: %v", productErr)
 		}
 		utils.Logger.Info("mock consumer has successfully updated the mock db with the compressed images path")
+		if m.reader.ReadMessageCalled {
+			break
+		}
 	}
+	fmt.Println("hello")
+	return nil
 }
 
 func (m *MockProductService) downloadAndCompressProductImages(ctx *gin.Context, msg models.Message) ([]string, *producterror.ProductError) {
@@ -177,15 +183,24 @@ func (m *MockProductService) addProduct(context *gin.Context, product models.Pro
 	return productId, err
 }
 
-func (m *MockProductService) AddProduct(context *gin.Context, product models.Product) *producterror.ProductError {
+// This function needs improvment
+func (m *MockProductService) AddProduct(context *gin.Context, product models.Product) error {
 	// Mock implementation for creating a product in the database
 	var productDetails models.Product
 	txid := context.Request.Header.Get(constants.TransactionID)
 	utils.Logger.Info("Request received successfully at service layer to add the product", zap.String("txid", txid))
-	mockMessageChan = make(chan models.Message)
+	mockMessageChan = make(chan models.Message, 1)
+	//Define the expected message
 
+	expectedMessage := models.Message{
+		ProductID: "123",
+	}
+
+	//Create a channel for the messages
+
+	mockMessageChan <- expectedMessage
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		err := m.produceMessages(context, mockMessageChan, &m.writer)
@@ -194,60 +209,48 @@ func (m *MockProductService) AddProduct(context *gin.Context, product models.Pro
 			context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to produce messages"})
 		}
 	}()
-
+	wg.Wait()
+	wg.Add(1)
 	go func() {
-		defer wg.Done()
+
 		err := m.consumeMessages(context, mockMessageChan, &m.reader)
 		if err != nil {
 			utils.Logger.Error("Error consuming messages:", zap.Error(err))
 			context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to consume messages"})
+		} else {
+			wg.Done()
 		}
 	}()
-
+	fmt.Println("both go routine")
 	productID, err := m.addProduct(context, productDetails)
-
-	//Define the expected message
-	// expectedMessage := models.Message{
-	// 	ProductID: fmt.Sprint(productID),
-	// }
-
-	//Create a channel for the messages
-
-	//mockMessageChan <- expectedMessage
-	close(mockMessageChan)
 	wg.Wait()
 	if err != nil {
-		return &producterror.ProductError{
-			Code:    http.StatusInternalServerError,
-			Message: "unable to add product",
-			Trace:   txid,
-		}
-		//context.JSON(err.Code, err)
+		return fmt.Errorf("error while adding product in  mock db %v", err)
 	} else {
 		utils.Logger.Info(fmt.Sprintf("product id %v  is successfully added.", *productID))
 		return nil
-		// context.JSON(http.StatusOK, map[string]string{
-		// 	//"Product Name": product.ProductName,
-		// 	"Product ID": fmt.Sprint(*productID),
-		// })
 	}
-
-	// } else {
-	// 	utils.Logger.Info("unable to add product", zap.String("txid", txid))
-	// 	producterror := producterror.ProductError{
-	// 		Code:    http.StatusBadRequest,
-	// 		Message: "unable to marshall the request body",
-	// 		Trace:   context.GetHeader(constants.TransactionID),
-	// 	}
-	// 	context.JSON(http.StatusBadRequest, producterror)
-	// }
 	return nil
 }
 
-func (m *MockProductService) AddUser(ctx context.Context, user models.User) error {
+func (m *MockProductService) AddUser(ctx *gin.Context, user models.User) error {
 	// Mock implementation for creating a product in the database
-	log.Println("user added successfully:")
+	utils.Logger.Info("mock service layer called for adding a user")
+	userId, err := m.addUser(ctx, user)
+	if err != nil {
+		return nil
+	}
+	utils.Logger.Info(fmt.Sprintf("user Id add in mock db is %v", *userId))
 	return nil
+}
+
+func (m *MockProductService) addUser(context *gin.Context, user models.User) (*int, *producterror.ProductError) {
+	utils.Logger.Info("mock service layer called for adding a user in mock db")
+	userId, err := m.MockRepo.AddUser(context, user)
+	if err != nil {
+		return nil, err
+	}
+	return userId, err
 }
 
 func NewMockKafkaWriter() *MockKafkaWriter {

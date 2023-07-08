@@ -52,6 +52,7 @@ func NewProductService(conn db.ProductDBService, writer KafkaWriter, reader Kafk
 	return productClient
 }
 
+// This is a function to process the product details and subsequently storing it in DB.
 func AddProduct() func(ctx *gin.Context) {
 	return func(context *gin.Context) {
 		var productDetails models.Product
@@ -60,6 +61,7 @@ func AddProduct() func(ctx *gin.Context) {
 			utils.Logger.Info("Request received successfully at service layer to add the product", zap.String("txid", txid))
 			messageChan = make(chan models.Message)
 			go func() {
+				// Calling the producer to start producing the message as soon as the message is sent to the messageChan
 				err := productClient.produceMessages(context, messageChan, productClient.writer)
 				if err != nil {
 					utils.Logger.Error("Error producing messages:", zap.Error(err))
@@ -68,6 +70,7 @@ func AddProduct() func(ctx *gin.Context) {
 			}()
 
 			go func() {
+				// Calling the consumer to start consuming the message from MQ
 				err := productClient.consumeMessages(context, messageChan, productClient.reader)
 				if err != nil {
 					utils.Logger.Error("Error consuming messages:", zap.Error(err))
@@ -96,6 +99,7 @@ func AddProduct() func(ctx *gin.Context) {
 	}
 }
 
+// This is a function to process the user details and subsequently storing it in DB.
 func AddUser() func(ctx *gin.Context) {
 	return func(context *gin.Context) {
 		var userDetails models.User
@@ -154,6 +158,7 @@ func (service *ProductService) addProduct(ctx *gin.Context, productDetails model
 	return productID, nil
 }
 
+// produce message
 func (service *ProductService) produceMessages(ctx *gin.Context, messageChan <-chan models.Message, writer KafkaWriter) error {
 	for message := range messageChan {
 		// Serialize the message data
@@ -180,6 +185,7 @@ func (service *ProductService) produceMessages(ctx *gin.Context, messageChan <-c
 	return nil
 }
 
+// consume message code
 func (service *ProductService) consumeMessages(ctx *gin.Context, messageChan chan<- models.Message, reader KafkaReader) error {
 	for {
 		// Read the next message from the Kafka topic
@@ -225,6 +231,7 @@ func (service *ProductService) consumeMessages(ctx *gin.Context, messageChan cha
 	}
 }
 
+// downloadAndCompressProductImages
 func (service *ProductService) downloadAndCompressProductImages(ctx *gin.Context, msg models.Message) ([]string, *producterror.ProductError) {
 	// Simulate image compression process.
 	productID, _ := strconv.Atoi(msg.ProductID)
@@ -289,8 +296,8 @@ func (service *ProductService) downloadAndCompressProductImages(ctx *gin.Context
 	return imagesPath, nil
 }
 
+// getProductImages from DB
 func (service *ProductService) getProductImages(ctx *gin.Context, productID int) ([]string, *producterror.ProductError) {
-
 	images, err := service.repo.GetProductImages(ctx, productID)
 	if err != nil {
 		return []string{}, err
@@ -299,6 +306,7 @@ func (service *ProductService) getProductImages(ctx *gin.Context, productID int)
 	return images, nil
 }
 
+// downloads the image based on the image URL
 func (service *ProductService) getImage(ctx *gin.Context, imageURL string, msg models.Message, index int, outputPath string) error {
 	txid := ctx.Request.Header.Get(constants.TransactionID)
 
@@ -330,6 +338,7 @@ func (service *ProductService) getImage(ctx *gin.Context, imageURL string, msg m
 
 }
 
+// resize the given image
 func (service *ProductService) resizeImage(ctx *gin.Context, inputPath, outputPath string, width, height int) error {
 	txid := ctx.Request.Header.Get(constants.TransactionID)
 	// Open the input file

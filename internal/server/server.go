@@ -17,10 +17,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Registering the AddProduct EndPoints
 func registerAddProductEndPoints(handler gin.IRoutes) {
 	handler.POST(constants.ForwardSlash+strings.Join([]string{constants.ProductAPI, constants.ForwardSlash, constants.Product, constants.ForwardSlash, constants.Create}, constants.ForwardSlash), service.AddProduct())
 }
 
+// Register AddUser EndPoints
 func registerAddUserEndPoints(handler gin.IRoutes) {
 	handler.POST(constants.ForwardSlash+strings.Join([]string{constants.ProductAPI, constants.ForwardSlash, constants.User, constants.ForwardSlash, constants.Create}, constants.ForwardSlash), service.AddUser())
 }

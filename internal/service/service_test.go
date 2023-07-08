@@ -22,6 +22,7 @@ import (
 )
 
 func TestProduceMessages(t *testing.T) {
+	utils.InitLogClient()
 	mockWriter := &MockKafkaWriter{}
 	productClient := NewMockProductService(&db.MockPostgres{}, mockWriter, &MockKafkaReader{})
 
@@ -147,7 +148,7 @@ func TestConsumeMessages(t *testing.T) {
 }
 
 func TestDownloadAndCompressProductImages(t *testing.T) {
-
+	utils.InitLogClient()
 	transactionID := uuid.New().String()
 	ctx := &gin.Context{
 		Request: &http.Request{
@@ -156,8 +157,6 @@ func TestDownloadAndCompressProductImages(t *testing.T) {
 			},
 		},
 	}
-
-	utils.InitLogClient()
 
 	productId := 123
 	testMessage := models.Message{

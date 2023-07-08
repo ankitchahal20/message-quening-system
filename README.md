@@ -8,7 +8,7 @@ Before running the Message Queueing System, make sure you have the following pre
 
 - Go programming language (go1.20.4)
 - Kafka (3.4.0)
-- PostgreSQL
+- PostgreSQL(14.8)
 
 ## Installation
 
@@ -16,6 +16,7 @@ Before running the Message Queueing System, make sure you have the following pre
 
    ```bash
    git clone https://github.com/ankitchahal20/message-queueing-system.git
+   I have not pushed the chnages for now.
    ```
 
 2. Navigate to the project directory:
@@ -46,8 +47,28 @@ Before running the Message Queueing System, make sure you have the following pre
 5. Defaults.toml
 Add the values to defaults.toml and execute `go run main.go` from the cmd directory.
 
+## APIs
+There are two API's which this repo currently has.
+
+Create user API
+```
 curl -i -k -X POST \
-  http://127.0.0.1:8080/v1/product/create \
+  http://127.0.0.1:8080/v1/productapi/user/create \
+  -H "transaction-id: 288a59c1-b826-42f7-a3cd-bf2911a5c351" \
+  -H "content-type: application/json" \
+  -d '{
+  "name": "Ankit Chahal",
+  "mobile": "9999999999",
+  "latitude": 37.1234,
+  "longitude": -122.5678
+}'
+```
+
+Create Product API
+
+```
+curl -i -k -X POST \
+  http://127.0.0.1:8080/v1/productapi/product/create \
   -H "transaction-id: 288a59c1-b826-42f7-a3cd-bf2911a5c351" \
   -H "content-type: application/json" \
   -d '{
@@ -57,6 +78,9 @@ curl -i -k -X POST \
   "product_images": ["https://cdn.pixabay.com/photo/2013/10/15/09/12/flower-195893_150.jpg","https://images.pexels.com/photos/2014422/pexels-photo-2014422.jpeg","https://images.pexels.com/photos/2014421/pexels-photo-2014421.jpeg"],
   "product_price": 10
 }'
+```
+Note : There exists a foreign key constraint/relation and the products(userid) is a foreign key referencing to users(id). Pls, check sql scripts for more details.
+
 
 ## Project Structure
 
