@@ -17,19 +17,27 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func registerCreateProductEndPoints(handler gin.IRoutes) {
-	handler.POST(constants.ForwardSlash+strings.Join([]string{constants.Product, constants.ForwardSlash, constants.Create}, constants.ForwardSlash), service.AddProduct())
+func registerAddProductEndPoints(handler gin.IRoutes) {
+	handler.POST(constants.ForwardSlash+strings.Join([]string{constants.ProductAPI, constants.ForwardSlash, constants.Product, constants.ForwardSlash, constants.Create}, constants.ForwardSlash), service.AddProduct())
+}
+
+func registerAddUserEndPoints(handler gin.IRoutes) {
+	handler.POST(constants.ForwardSlash+strings.Join([]string{constants.ProductAPI, constants.ForwardSlash, constants.User, constants.ForwardSlash, constants.Create}, constants.ForwardSlash), service.AddUser())
 }
 
 func Start() {
 	plainHandler := gin.New()
 
-	messageQueueHandler := plainHandler.Group(constants.ForwardSlash + constants.Version).Use(gin.Recovery()).
+	productHandler := plainHandler.Group(constants.ForwardSlash + constants.Version).Use(gin.Recovery()).
 		Use(gin.Recovery()).
 		//Use(middleware.AuthorizeRequest()).
-		Use(middleware.ValidateInputRequest())
+		Use(middleware.ValidateProductInputRequest())
 
-	registerCreateProductEndPoints(messageQueueHandler)
+	registerAddProductEndPoints(productHandler)
+	userHandler := plainHandler.Group(constants.ForwardSlash + constants.Version).Use(gin.Recovery()).
+		Use(gin.Recovery()).
+		Use(middleware.ValidateUserInputRequest())
+	registerAddUserEndPoints(userHandler)
 
 	cfg := config.GetConfig()
 	srv := &http.Server{

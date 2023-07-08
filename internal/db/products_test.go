@@ -15,6 +15,7 @@ import (
 
 	"github.com/ankit/project/message-quening-system/internal/constants"
 	"github.com/ankit/project/message-quening-system/internal/models"
+	"github.com/ankit/project/message-quening-system/internal/utils"
 )
 
 func TestAddProduct(t *testing.T) {
@@ -27,6 +28,8 @@ func TestAddProduct(t *testing.T) {
 	p := postgres{
 		db: db,
 	}
+
+	utils.InitLogClient()
 
 	transactionID := uuid.New().String()
 	ctx := &gin.Context{
@@ -133,8 +136,8 @@ func TestUpdateCompressedProductImages(t *testing.T) {
 	compressedImages := []string{"image1_compressed.jpg", "image2_compressed.jpg"}
 
 	// Setting up the expected SQL query and result
-	mock.ExpectExec(regexp.QuoteMeta(`UPDATE products SET compressed_product_images = $1 WHERE product_id = $2`)).
-		WithArgs(pq.Array(compressedImages), productID).
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE products SET compressed_product_images = $1, updated_at=$2 WHERE product_id = $3`)).
+		WithArgs(pq.Array(compressedImages), sqlmock.AnyArg(), productID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	// Invoking the function being tested

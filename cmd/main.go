@@ -29,7 +29,6 @@ func main() {
 	kafkaReader := kafka.IntializeKafkaConsumerReader()
 	defer kafkaReader.Close()
 
-	utils.InitLogClient()
 	_ = service.NewProductService(postgres, kafkaWriter, kafkaReader)
 
 	server.Start()

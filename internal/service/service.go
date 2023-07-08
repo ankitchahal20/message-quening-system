@@ -55,13 +55,12 @@ func NewProductService(conn db.ProductDBService, writer KafkaWriter, reader Kafk
 func AddProduct() func(ctx *gin.Context) {
 	return func(context *gin.Context) {
 		var productDetails models.Product
+		txid := context.Request.Header.Get(constants.TransactionID)
 		if err := context.ShouldBindBodyWith(&productDetails, binding.JSON); err == nil {
+			utils.Logger.Info("Request received successfully at service layer to add the product", zap.String("txid", txid))
 			messageChan = make(chan models.Message)
-			//var wg sync.WaitGroup
-			//wg.Add(2)
 			go func() {
-				//defer wg.Done()
-				err := productClient.ProduceMessages(context, messageChan, productClient.writer)
+				err := productClient.produceMessages(context, messageChan, productClient.writer)
 				if err != nil {
 					utils.Logger.Error("Error producing messages:", zap.Error(err))
 					context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to produce messages"})
@@ -69,16 +68,14 @@ func AddProduct() func(ctx *gin.Context) {
 			}()
 
 			go func() {
-				//defer wg.Done()
-				err := productClient.ConsumeMessages(context, messageChan, productClient.reader)
+				err := productClient.consumeMessages(context, messageChan, productClient.reader)
 				if err != nil {
 					utils.Logger.Error("Error consuming messages:", zap.Error(err))
 					context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to consume messages"})
 				}
 			}()
 
-			productID, err := productClient.createProduct(context, productDetails)
-			//wg.Wait()
+			productID, err := productClient.addProduct(context, productDetails)
 			if err != nil {
 				context.JSON(err.Code, err)
 			} else {
@@ -88,6 +85,7 @@ func AddProduct() func(ctx *gin.Context) {
 				})
 			}
 		} else {
+			utils.Logger.Info("unable to add product", zap.String("txid", txid))
 			producterror := producterror.ProductError{
 				Code:    http.StatusBadRequest,
 				Message: "unable to marshall the request body",
@@ -98,11 +96,50 @@ func AddProduct() func(ctx *gin.Context) {
 	}
 }
 
-func (service *ProductService) createProduct(ctx *gin.Context, productDetails models.Product) (*int, *producterror.ProductError) {
+func AddUser() func(ctx *gin.Context) {
+	return func(context *gin.Context) {
+		var userDetails models.User
+		txid := context.Request.Header.Get(constants.TransactionID)
+		if err := context.ShouldBindBodyWith(&userDetails, binding.JSON); err == nil {
+			utils.Logger.Info("Request received successfully at service layer to add the user", zap.String("txid", txid))
+			userID, err := productClient.addUser(context, userDetails)
+			if err != nil {
+				context.JSON(err.Code, err)
+			} else {
+				context.JSON(http.StatusOK, map[string]string{
+					"User ID": fmt.Sprint(*userID),
+				})
+			}
+		} else {
+			utils.Logger.Info("unable to add user", zap.String("txid", txid))
+			producterror := producterror.ProductError{
+				Code:    http.StatusBadRequest,
+				Message: "unable to marshall the request body",
+				Trace:   context.GetHeader(constants.TransactionID),
+			}
+			context.JSON(http.StatusBadRequest, producterror)
+		}
+	}
+}
+
+func (service *ProductService) addUser(ctx *gin.Context, userDetails models.User) (*int, *producterror.ProductError) {
+	userDetails.CreatedAt = time.Now().UTC()
+	userDetails.UpdatedAt = time.Now().UTC()
+
+	utils.Logger.Info("calling db layer for adding the user")
+	userID, err := service.repo.AddUser(ctx, userDetails)
+	if err != nil {
+		return nil, err
+	}
+
+	return userID, nil
+}
+
+func (service *ProductService) addProduct(ctx *gin.Context, productDetails models.Product) (*int, *producterror.ProductError) {
 	productDetails.CreatedAt = time.Now().UTC()
 	productDetails.UpdatedAt = time.Now().UTC()
 
-	utils.Logger.Info("calling db layer for creating the product")
+	utils.Logger.Info("calling db layer for adding the product")
 	productID, err := service.repo.AddProduct(ctx, productDetails)
 	if err != nil {
 		return nil, err
@@ -117,7 +154,7 @@ func (service *ProductService) createProduct(ctx *gin.Context, productDetails mo
 	return productID, nil
 }
 
-func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-chan models.Message, writer KafkaWriter) error {
+func (service *ProductService) produceMessages(ctx *gin.Context, messageChan <-chan models.Message, writer KafkaWriter) error {
 	for message := range messageChan {
 		// Serialize the message data
 		messageData, err := json.Marshal(message)
@@ -143,11 +180,17 @@ func (service *ProductService) ProduceMessages(ctx *gin.Context, messageChan <-c
 	return nil
 }
 
-func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan chan<- models.Message, reader KafkaReader) error {
+func (service *ProductService) consumeMessages(ctx *gin.Context, messageChan chan<- models.Message, reader KafkaReader) error {
 	for {
 		// Read the next message from the Kafka topic
 		message, err := reader.ReadMessage(context.Background())
 		if err != nil {
+			// Check if the error is due to the consumer leaving the group
+			if err == kafka.ErrGroupClosed {
+				// The consumer group has been closed intentionally
+				utils.Logger.Info("Consumer group closed")
+				return nil
+			}
 			utils.Logger.Error("Error reading message from Kafka:", zap.String("error", err.Error()))
 			return fmt.Errorf("error reading message from Kafka: %w", err)
 		}
@@ -157,7 +200,7 @@ func (service *ProductService) ConsumeMessages(ctx *gin.Context, messageChan cha
 		receivedMessage := models.Message{}
 		err = json.Unmarshal(message.Value, &receivedMessage)
 		if err != nil {
-			utils.Logger.Error("Error marshaling message :", zap.String("error", err.Error()))
+			utils.Logger.Error("Error unmarshaling message :", zap.String("error", err.Error()))
 			return fmt.Errorf("error unmarshaling message: %w", err)
 		}
 		utils.Logger.Info(fmt.Sprintf("Consumser successfully unmarshalls the message, ProductId : %v", receivedMessage.ProductID))
@@ -186,7 +229,7 @@ func (service *ProductService) downloadAndCompressProductImages(ctx *gin.Context
 	// Simulate image compression process.
 	productID, _ := strconv.Atoi(msg.ProductID)
 	productImages, _ := service.getProductImages(ctx, productID)
-	fmt.Printf("Product images compressed for product_id: %s %s\n", msg.ProductID, productImages)
+	utils.Logger.Info(fmt.Sprintf("Product images compressed for product_id: %s %s\n", msg.ProductID, productImages))
 
 	// Create the output directory if it doesn't exist
 	err := os.MkdirAll(imageOutputDir, 0755)
@@ -198,8 +241,6 @@ func (service *ProductService) downloadAndCompressProductImages(ctx *gin.Context
 			Trace:   ctx.Request.Header.Get(constants.TransactionID),
 		}
 	}
-
-	// Define the output file path
 
 	// Iterate over the product images and download/compress each image
 	i := 1

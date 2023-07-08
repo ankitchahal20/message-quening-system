@@ -34,9 +34,9 @@ func TestValidateRequestInput(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	_, e := gin.CreateTestContext(w)
-	req, _ := http.NewRequest(http.MethodPost, "/v1/product/create", bytes.NewBuffer(jsonValue))
+	req, _ := http.NewRequest(http.MethodPost, "/v1/productapi/product/create", bytes.NewBuffer(jsonValue))
 	req.Header.Add(constants.ContentType, "application/json")
-	e.Use(ValidateInputRequest())
+	e.Use(ValidateProductInputRequest())
 	e.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -53,9 +53,9 @@ func TestValidateRequestInput(t *testing.T) {
 
 	w = httptest.NewRecorder()
 	_, e = gin.CreateTestContext(w)
-	req, _ = http.NewRequest(http.MethodPost, "/v1/product/create", bytes.NewBuffer(jsonValue))
+	req, _ = http.NewRequest(http.MethodPost, "/v1/productapi/product/create", bytes.NewBuffer(jsonValue))
 	req.Header.Add(constants.ContentType, "application/json")
-	e.Use(ValidateInputRequest())
+	e.Use(ValidateProductInputRequest())
 	e.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -71,9 +71,9 @@ func TestValidateRequestInput(t *testing.T) {
 
 	w = httptest.NewRecorder()
 	_, e = gin.CreateTestContext(w)
-	req, _ = http.NewRequest(http.MethodPost, "/v1/product/create", bytes.NewBuffer(jsonValue))
+	req, _ = http.NewRequest(http.MethodPost, "/v1/productapi/product/create", bytes.NewBuffer(jsonValue))
 	req.Header.Add(constants.ContentType, "application/json")
-	e.Use(ValidateInputRequest())
+	e.Use(ValidateProductInputRequest())
 	e.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -88,9 +88,9 @@ func TestValidateRequestInput(t *testing.T) {
 
 	w = httptest.NewRecorder()
 	_, e = gin.CreateTestContext(w)
-	req, _ = http.NewRequest(http.MethodPost, "/v1/product/create", bytes.NewBuffer(jsonValue))
+	req, _ = http.NewRequest(http.MethodPost, "/v1/productapi/product/create", bytes.NewBuffer(jsonValue))
 	req.Header.Add(constants.ContentType, "application/json")
-	e.Use(ValidateInputRequest())
+	e.Use(ValidateProductInputRequest())
 	e.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -105,9 +105,9 @@ func TestValidateRequestInput(t *testing.T) {
 
 	w = httptest.NewRecorder()
 	_, e = gin.CreateTestContext(w)
-	req, _ = http.NewRequest(http.MethodPost, "/v1/product/create", bytes.NewBuffer(jsonValue))
+	req, _ = http.NewRequest(http.MethodPost, "/v1/productapi/product/create", bytes.NewBuffer(jsonValue))
 	req.Header.Add(constants.ContentType, "application/json")
-	e.Use(ValidateInputRequest())
+	e.Use(ValidateProductInputRequest())
 	e.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 

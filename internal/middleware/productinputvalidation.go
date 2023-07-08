@@ -25,7 +25,7 @@ func getTransactionID(c *gin.Context) string {
 	return transactionID
 }
 
-func ValidateInputRequest() gin.HandlerFunc {
+func ValidateProductInputRequest() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		// fetch the transactionID
@@ -39,7 +39,7 @@ func ValidateInputRequest() gin.HandlerFunc {
 			return
 		}
 
-		productError := validateInputRequest(txid, productRequestFields)
+		productError := validateProductInputRequest(txid, productRequestFields)
 		if productError != nil {
 			utils.RespondWithError(ctx, productError.Code, productError.Message)
 			return
@@ -48,7 +48,7 @@ func ValidateInputRequest() gin.HandlerFunc {
 	}
 }
 
-func validateInputRequest(txid string, productRequestFields models.Product) *producterror.ProductError {
+func validateProductInputRequest(txid string, productRequestFields models.Product) *producterror.ProductError {
 	if productRequestFields.UserID == nil {
 		utils.Logger.Error("user id missing", zap.String("txid", txid))
 		return &producterror.ProductError{

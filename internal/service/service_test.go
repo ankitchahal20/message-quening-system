@@ -48,7 +48,7 @@ func TestProduceMessages(t *testing.T) {
 	// Start the goroutine for producing messages
 	go func() {
 		defer wg.Done()
-		err := productClient.ProduceMessages(ctx, messageChan, mockWriter)
+		err := productClient.produceMessages(ctx, messageChan, mockWriter)
 		if err != nil {
 			t.Errorf("Failed to produce messages: %v", err)
 		}
@@ -85,8 +85,23 @@ func TestProduceMessages(t *testing.T) {
 }
 
 func TestConsumeMessages(t *testing.T) {
+	utils.InitLogClient()
 	mockReader := &MockKafkaReader{}
-	mockProductService := NewMockProductService(&db.MockPostgres{}, &MockKafkaWriter{}, mockReader)
+
+	userId := 1
+	productPrice := 1
+	p := models.Product{
+		UserID:             &userId,
+		ProductName:        "My Product",
+		ProductImages:      []string{"image1.jpg", "image2.jpg"},
+		ProductDescription: "No Description",
+		ProductPrice:       &productPrice,
+	}
+	mp := &db.MockPostgres{
+		Product: &p,
+	}
+
+	mockProductClient := NewMockProductService(mp, &MockKafkaWriter{}, mockReader)
 
 	// Define the expected message
 	expectedMessage := models.Message{
@@ -102,7 +117,7 @@ func TestConsumeMessages(t *testing.T) {
 
 	// Start the goroutine for consuming messages
 	go func() {
-		err := mockProductService.ConsumeMessages(ctx, messageChan, mockReader)
+		err := mockProductClient.consumeMessages(ctx, messageChan, mockReader)
 		if err != nil {
 			t.Errorf("Failed to consume messages: %v", err)
 		}
@@ -151,16 +166,28 @@ func TestDownloadAndCompressProductImages(t *testing.T) {
 			ProductName: "Test Product",
 		},
 	}
-	userID := 1
+
+	userId := 1
+	productPrice := 1
+	p := models.Product{
+		UserID:             &userId,
+		ProductName:        "My Product",
+		ProductImages:      []string{"image1.jpg", "image2.jpg"},
+		ProductDescription: "No Description",
+		ProductPrice:       &productPrice,
+	}
+	mp := &db.MockPostgres{
+		Product: &p,
+	}
 	mockReader := &MockKafkaReader{}
-	mockProductService := NewMockProductService(&db.MockPostgres{}, &MockKafkaWriter{}, mockReader)
-	mockProductService.product = models.Product{
-		UserID:        &userID,
+	mockProductService := NewMockProductService(mp, &MockKafkaWriter{}, mockReader)
+	mockProductService.Product = &models.Product{
+		UserID:        &userId,
 		ProductName:   "Test Product",
 		ProductImages: []string{"url1", "url2"},
 	}
-	compressedImages, _ := mockProductService.DownloadAndCompressProductImages(ctx, testMessage)
-	mockProductService.UpdateCompressedProductImages(ctx, testMessage.ProductID, compressedImages)
+	compressedImages, _ := mockProductService.downloadAndCompressProductImages(ctx, testMessage)
+	mockProductService.updateCompressedProductImages(ctx, testMessage.ProductID, compressedImages)
 }
 
 func TestDownloadAndCompressImage(t *testing.T) {

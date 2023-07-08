@@ -2,7 +2,9 @@ package constants
 
 const (
 	ForwardSlash = "/"
+	ProductAPI   = "productapi"
 	Product      = "product"
+	User         = "user"
 	Version      = "v1"
 	Create       = "create"
 	Get          = "get"

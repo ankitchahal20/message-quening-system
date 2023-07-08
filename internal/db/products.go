@@ -1,26 +1,19 @@
 package db
 
 import (
-	"database/sql"
 	"errors"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ankit/project/message-quening-system/internal/constants"
 	"github.com/ankit/project/message-quening-system/internal/models"
 	producterror "github.com/ankit/project/message-quening-system/internal/producterror"
+	"github.com/ankit/project/message-quening-system/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
 )
-
-type postgres struct{ db *sql.DB }
-
-type ProductDBService interface {
-	AddProduct(*gin.Context, models.Product) (*int, *producterror.ProductError)
-	GetProductImages(*gin.Context, int) ([]string, *producterror.ProductError)
-	UpdateCompressedProductImages(*gin.Context, int, []string) *producterror.ProductError
-}
 
 var (
 	ErrNoRowFound         = errors.New("no row found in DB for the given product id")
@@ -64,6 +57,7 @@ func (p postgres) AddProduct(ctx *gin.Context, productDetails models.Product) (*
 			}
 		}
 	}
+	utils.Logger.Info("added product in db successfully")
 
 	return &productID, nil
 }
@@ -83,10 +77,10 @@ func (p postgres) GetProductImages(ctx *gin.Context, productID int) ([]string, *
 }
 
 func (p postgres) UpdateCompressedProductImages(ctx *gin.Context, productID int, compressedImages []string) *producterror.ProductError {
-	query := "UPDATE products SET compressed_product_images = $1 WHERE product_id = $2"
+	query := "UPDATE products SET compressed_product_images = $1, updated_at=$2 WHERE product_id = $3"
 	compressedImagesArray := pq.Array(compressedImages)
 
-	_, err := p.db.Exec(query, compressedImagesArray, productID)
+	_, err := p.db.Exec(query, compressedImagesArray, time.Now().UTC(), productID)
 	if err != nil {
 		return &producterror.ProductError{
 			Code:    http.StatusInternalServerError,
